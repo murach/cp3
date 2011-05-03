@@ -86,15 +86,10 @@ void vec_copy(vektor a, vektor b){
 }
 
 void vec_addition(vektor a, vektor b, vektor c, int sign){      // sign: defaultparameter +1
-  (sign>0) ? (sign = 1) : (sign = -1);
+  sign = (sign>0) ? 1 : -1;
   for (int i=0; i<N; ++i){
     c[i] = a[i] + sign*b[i];
   }
-//   cout << "in additionsfunktion, sign: " << sign << ", sign*b[i]: " << a[1] + sign*b[1] << endl;
-//   print_vektor(a);
-//   print_vektor(b);
-//   print_vektor(c);
-//   cout << "ende funktion" << endl;
 }
 
 vektor mult_matrix_vektor(matrix A, vektor x){
@@ -169,30 +164,26 @@ vektor cg(int N, matrix A, vektor x, vektor b, int max_it, double relerr, bool f
   for (int i=0; i<max_it; ++i){
 //     print_vektor(p);
     laplace(p, m2, s);
-    print_vektor(s);         // s =ca.= +-3*p
+//     print_vektor(s);         // s =ca.= +-3*p
     r2_alt = skalarprodukt(r, r);                       // r²_k;
     alpha = r2_alt / skalarprodukt(p, s);
-    cout << "alpha: " << alpha << endl;              // alpha wird schnell klein
+//     cout << "alpha: " << alpha << endl;              // alpha wird schnell klein
 //     print_vektor(p);
 //     mult_skalar_vektor(alpha, p, dummyvec);
 //     print_vektor(dummyvec);
 //     vec_addition(x, dummyvec, dummyvec2);		        // neues x_(k+1)
-    mult_skalar_vektor(alpha, s, dummyvec);                     //checked
-    print_vektor(dummyvec);
-    vec_addition(r, dummyvec, dummyvec2, -1);	                // neues r_(k+1), checked
-    vec_copy(dummyvec2, r);
+    mult_skalar_vektor(alpha, s, dummyvec);                     //checked; dummyvec = alpha * s
+//     print_vektor(dummyvec);
+    vec_addition(r, dummyvec, dummyvec2, -1);	                // neues r_(k+1), checked; dummyvec2 = r - dummyvec
+    vec_copy(dummyvec2, r);                                     // r = dummyvec2
     r2_neu = skalarprodukt(r, r);			// r²_(k+1)
     if (r2_neu < tol) break;
     beta = r2_neu / r2_alt;
-    mult_skalar_vektor(beta, p, dummyvec);              // checked
-    vec_addition(r, dummyvec, p);               	// neues p_(k+1), checked
+    mult_skalar_vektor(beta, p, dummyvec);              // checked; dummyvec = beta * p
+    vec_addition(r, dummyvec, p);               	// neues p_(k+1), checked; p = r + dummyvec
     ++counter;
     cout << "r2_k und r2_(k+1): " << r2_alt << " " << r2_neu << endl;
-    cout << "i: " << i << ", beta: " << beta << endl;
-//     print_vektor(p);
-//     print_vektor(s);
-//     print_vektor(x);
-//     print_vektor(r);
+    cout << "i: " << i << ", alpha: " << alpha << ", beta: " << beta << endl;
   }
 
   cout << "Anzahl von Schritten: " << counter << endl;
