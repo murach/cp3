@@ -1,0 +1,309 @@
+#include <string>
+#include <iostream>
+#include <stdlib.h>
+#include <assert.h>
+#include <math.h>
+// #include <omp.h>
+
+#include <TRandom3.h>
+
+// #include "global.h"
+
+using std::string;
+using std::cout;
+using std::endl;
+
+typedef double *vektor;
+typedef double **matrix;
+
+const int N = 3;
+// #define N 3
+
+matrix malloc_matrix(int N);
+inline vektor malloc_vektor(int N){ return new double[N]; }
+vektor vec_copy(vektor a);
+vektor vec_addition(vektor a, vektor b, int sign = 1);
+void vec_addition(vektor a, vektor b, vektor c, int sign = 1);
+vektor mult_matrix_vektor(matrix A, vektor x);
+vektor mult_skalar_vektor(double alpha, vektor x);
+void mult_skalar_vektor(double alpha, vektor x, vektor c);
+double skalarprodukt(vektor a, vektor b);
+void print_vektor(vektor x);
+void print_matrix(matrix A);
+vektor laplace(vektor x, double m2);
+void laplace(vektor x, double m2, vektor c);
+
+vektor cg(int N, matrix A, vektor x, vektor b, int max_it, double relerr = 1e-10, bool flag = 1);
+void geom_pbc();
+
+int **nn;
+const int ndim=2;
+int lsize[ndim+1] = {0,N,N};
+int nvol;
+
+int main(int argc, char *argv[]) {
+
+    TRandom3 *ran = new TRandom3(0);
+
+    vektor eta = malloc_vektor(N);
+//     double eta[N];
+    vektor phi = malloc_vektor(N);
+//     double phi[N];
+    geom_pbc();
+
+    matrix A = malloc_matrix(N);
+//     double A[N][N];
+//     double dummy = 0.;
+
+    for (int i=0; i<N; ++i){
+      eta[i] = ran->Uniform();
+    }
+
+//     print_matrix(A);
+    vektor x2 = malloc_vektor(N);
+//     double x2[N];
+    x2 = vec_copy(cg(N, A, phi, eta, 100, 1e-10, 1));
+
+    return 0;
+}
+
+matrix malloc_matrix(int N)
+{
+  matrix feld;
+  feld = (matrix)malloc(N*sizeof(vektor));
+  feld[0] = (vektor)malloc(N*N*sizeof(double));
+  if(feld[0] == NULL) {
+    fprintf(stderr, "Not enough memory for allocating matrix\n");
+    exit(1);
+  }
+  for(int x = 1; x < N; x++)
+    feld[x] = feld[0] + N * x;
+  return feld;
+}
+
+vektor vec_copy(vektor a){
+  vektor b = malloc_vektor(N);
+  for (int i=0; i<N; ++i){
+    b[i] = a[i];
+  }
+  return b;
+}
+
+vektor vec_addition(vektor a, vektor b, int sign){	// sign: defaultparameter +1
+  vektor c = malloc_vektor(N);
+  (sign>0) ? (sign = 1) : (sign = -1);
+  for (int i=0; i<N; ++i){
+    c[i] = a[i] + sign*b[i];
+  }
+  return c;
+}
+
+void vec_addition(vektor a, vektor b, vektor c, int sign){      // sign: defaultparameter +1
+  (sign>0) ? (sign = 1) : (sign = -1);
+  for (int i=0; i<N; ++i){
+    c[i] = a[i] + sign*b[i];
+  }
+}
+
+vektor mult_matrix_vektor(matrix A, vektor x){
+  vektor c = malloc_vektor(N);
+//   #pragma omp parallel for
+  for (int i=0; i<N; ++i){
+    c[i] = 0.;
+    for (int j=0; j<N; ++j){
+      c[i] += A[i][j]*x[j];
+    }
+  }
+  return c;
+}
+
+vektor laplace(vektor x, double m2){
+  vektor c = malloc_vektor(N);
+//   #pragma omp parallel for
+  for (int i=0; i<nvol; ++i){
+    c[i] = (2*ndim + m2)*x[i];
+    for (int j=1; j<=ndim; ++j){
+//       cout << "laplace: " << nn[j][i] << " " << nn[ndim+j][i] << endl;
+      c[i] -= x[nn[j][i]] + x[nn[ndim+j][i]];
+    }
+//     cout << c[i] << endl;
+  }
+  return c;
+}
+
+void laplace(vektor x, double m2, vektor c){
+//   #pragma omp parallel for
+  for (int i=0; i<nvol; ++i){
+    c[i] = (2*ndim + m2)*x[i];
+    for (int j=1; j<=ndim; ++j){
+      c[i] -= x[nn[j][i]] + x[nn[ndim+j][i]];
+    }
+  }
+  return;
+}
+
+vektor mult_skalar_vektor(double alpha, vektor x){
+  cout << "begin function" << endl;
+  vektor c = malloc_vektor(N);
+  cout << "after malloc" << endl;
+//   #pragma omp parallel for
+  for (int i=0; i<N; ++i){
+    c[i] = alpha*x[i];
+  }
+  print_vektor(c);
+  return c;
+}
+
+void mult_skalar_vektor(double alpha, vektor x, vektor c){
+//   #pragma omp parallel for
+  for (int i=0; i<N; ++i){
+    c[i] = alpha*x[i];
+  }
+  return;
+}
+
+double skalarprodukt(vektor a, vektor b){
+  double erg = 0;
+  int i;
+//   #pragma omp parallel for reduction(+:erg)
+  for (i=0; i<N; ++i){
+    erg += a[i]*b[i];
+  }
+  return erg;
+}
+
+vektor cg(int N, matrix A, vektor x, vektor b, int max_it, double relerr, bool flag){
+  vektor r;
+  double tol = relerr*relerr*skalarprodukt(b, b);
+  double m = 0.1;
+  double m2 = m*m;
+
+  if (flag){
+    r = vec_copy(b);
+    for (int i=0; i<N; ++i){
+      x[i] = 0.;
+    }
+  }
+  else r = vec_addition(b, mult_matrix_vektor(A,x), -1);
+
+  if (skalarprodukt(r, r) < tol) exit(0);
+
+  vektor p = vec_copy(r);
+  vektor s = malloc_vektor(N);
+  double alpha, r2_alt, r2_neu, beta;
+  int counter = 0;
+  vektor dummyvec = malloc_vektor(N);
+//   vektor y = malloc_vektor(N);
+
+  for (int i=0; i<max_it; ++i){
+    laplace(p, m2, s);
+    alpha = skalarprodukt(p, r) / skalarprodukt(p, s);
+    mult_skalar_vektor(alpha, p, dummyvec);
+    vec_addition(x, dummyvec, x);		        // neues x_(k+1)
+    r2_alt = skalarprodukt(r, r);			// r²_k;
+    cout << "alpha = " << alpha << endl;
+    mult_skalar_vektor(alpha, s, dummyvec);
+    vec_addition(r, dummyvec, r, -1);	                // neues r_(k+1)
+    r2_neu = skalarprodukt(r, r);			// r²_(k+1)
+    if (r2_neu < tol) break;
+    beta = r2_neu / r2_alt;
+    mult_skalar_vektor(beta, p, dummyvec);
+    vec_addition(r, dummyvec, p);               	// neues p_(k+1)
+    ++counter;
+    cout << i << " " << r2_neu << " " << beta << endl;
+    print_vektor(p);
+    print_vektor(s);
+    print_vektor(x);
+    print_vektor(r);
+  }
+
+  cout << "Anzahl von Schritten: " << counter << endl;
+  return x;
+}
+
+void print_vektor(vektor x){
+  cout << "[";
+  for (int i=0; i<N; ++i){
+    cout << " " << x[i];
+  }
+  cout << " ]" << endl;
+
+  return;
+}
+
+void print_matrix(matrix A){
+  for (int i=0; i<N; ++i){
+    for (int j=0; j<N; ++j){
+      cout << " " << A[i][j];
+    }
+    cout << endl;
+  }
+
+  return;
+}
+
+void geom_pbc(){
+  /*
+  Angelegt und besetzt ist                            B Bunk 12/2005
+  Dimension     ndim                              rev     4/2011
+  Gittergroesse lsize[k], k=1..ndim
+
+  Angelegt und berechnet wird
+  Volumen       nvol
+  NN-Indexfeld  nn[k][i], k=0..2*ndim, i=0..(nvol-1)
+
+  nn[k][i] gibt den Index des Nachbarn von i in Richtung +k,
+  unter Beruecksichtigung periodischer Randbedingungen.
+  Fuer einen Schritt in Richtung -k setze man den Index auf (ndim+k).
+  nn[i][0] ist reserviert.
+  */
+  int   i, k;
+  int *ibase, *ix; 
+
+  ibase = (int *) malloc((ndim+2) * sizeof(int));
+  ix = (int *) malloc((ndim+1) * sizeof(int));
+
+  /* Basis fuer Punktindizes */
+  ibase[1] = 1;
+  for (k=1; k<=ndim; k++) ibase[k+1] = ibase[k]*lsize[k];
+  nvol = ibase[ndim+1];
+  cout << "vol: " << nvol << endl;
+
+  if (nn) free(nn[0]);
+  free(nn);
+  nn = (int **) malloc((2*ndim+1) * sizeof(int *));
+  nn[0] = (int *) malloc(nvol*(2*ndim+1) * sizeof(int));
+  for (k=1; k<=2*ndim; k++) nn[k] = nn[0] + nvol*k;
+
+  for (k=1; k<=ndim; k++) ix[k] = 0;   /* Koord. des Anfangspunkts */
+
+  for (int i=0; i<N; ++i){
+    for (int j=0; j<N; ++j){
+      nn[i][j] = 0;		       /* Feld mit nullen belegen */
+    }
+  }
+
+  for (i=0; i<nvol; i++){           /* Schleife ueber Punkte */
+    for (k=1; k<=ndim; k++){
+      nn[k][i] = i + ibase[k];      /* Nachbar x + e_k */
+      if (ix[k] == (lsize[k]-1)){
+	nn[k][i] -= ibase[k+1];
+	nn[0][i] = 1;		    /* für Dirichlet-RB */
+      }
+
+      nn[ndim+k][i] = i - ibase[k]; /* Nachbar x - e_k */
+      if (ix[k] == 0){
+	nn[ndim+k][i] += ibase[k+1];
+	nn[0][i] = 1;		    /* für Dirichlet-RB */
+      }
+//       cout << "geomfkt: " << nn[k][i] << " " << nn[ndim+k][i] << endl;
+    }
+
+    for (k=1; k<=ndim; k++){        /* Koord. des naechsten Punkts */
+      ix[k]++;
+      if (ix[k] < lsize[k]) break;
+      ix[k] = 0;
+    }
+  }
+  free(ibase); free(ix);
+}
