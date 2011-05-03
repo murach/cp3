@@ -169,14 +169,14 @@ vektor cg(int N, matrix A, vektor x, vektor b, int max_it, double relerr, bool f
   for (int i=0; i<max_it; ++i){
 //     print_vektor(p);
     laplace(p, m2, s);
-//     print_vektor(s);         // s =ca.= +-3*p
-    alpha = skalarprodukt(p, r) / skalarprodukt(p, s);
-//     cout << "alpha: " << alpha << endl;              // alpha wird schnell klein
+    print_vektor(s);         // s =ca.= +-3*p
+    r2_alt = skalarprodukt(r, r);                       // r²_k;
+    alpha = r2_alt / skalarprodukt(p, s);
+    cout << "alpha: " << alpha << endl;              // alpha wird schnell klein
 //     print_vektor(p);
 //     mult_skalar_vektor(alpha, p, dummyvec);
 //     print_vektor(dummyvec);
 //     vec_addition(x, dummyvec, dummyvec2);		        // neues x_(k+1)
-    r2_alt = skalarprodukt(r, r);			// r²_k;
     mult_skalar_vektor(alpha, s, dummyvec);                     //checked
     print_vektor(dummyvec);
     vec_addition(r, dummyvec, dummyvec2, -1);	                // neues r_(k+1), checked
