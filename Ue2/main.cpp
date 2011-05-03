@@ -21,16 +21,13 @@ const int N = 3;
 
 matrix malloc_matrix(int N);
 inline vektor malloc_vektor(int N){ return new double[N]; }
-vektor vec_copy(vektor a);
-vektor vec_addition(vektor a, vektor b, int sign = 1);
+void vec_copy(vektor a, vektor b);
 void vec_addition(vektor a, vektor b, vektor c, int sign = 1);
 vektor mult_matrix_vektor(matrix A, vektor x);
-vektor mult_skalar_vektor(double alpha, vektor x);
 void mult_skalar_vektor(double alpha, vektor x, vektor c);
 double skalarprodukt(vektor a, vektor b);
 void print_vektor(vektor x);
 void print_matrix(matrix A);
-vektor laplace(vektor x, double m2);
 void laplace(vektor x, double m2, vektor c);
 
 vektor cg(int N, matrix A, vektor x, vektor b, int max_it, double relerr = 1e-10, bool flag = 1);
@@ -62,7 +59,7 @@ int main(int argc, char *argv[]) {
 //     print_matrix(A);
     vektor x2 = malloc_vektor(N);
 //     double x2[N];
-    x2 = vec_copy(cg(N, A, phi, eta, 100, 1e-10, 1));
+    vec_copy(cg(N, A, phi, eta, 100, 1e-10, 1), x2);
 
     return 0;
 }
@@ -81,21 +78,11 @@ matrix malloc_matrix(int N)
   return feld;
 }
 
-vektor vec_copy(vektor a){
-  vektor b = malloc_vektor(N);
+void vec_copy(vektor a, vektor b){
   for (int i=0; i<N; ++i){
     b[i] = a[i];
   }
-  return b;
-}
-
-vektor vec_addition(vektor a, vektor b, int sign){	// sign: defaultparameter +1
-  vektor c = malloc_vektor(N);
-  (sign>0) ? (sign = 1) : (sign = -1);
-  for (int i=0; i<N; ++i){
-    c[i] = a[i] + sign*b[i];
-  }
-  return c;
+  return;
 }
 
 void vec_addition(vektor a, vektor b, vektor c, int sign){      // sign: defaultparameter +1
@@ -103,6 +90,11 @@ void vec_addition(vektor a, vektor b, vektor c, int sign){      // sign: default
   for (int i=0; i<N; ++i){
     c[i] = a[i] + sign*b[i];
   }
+//   cout << "in additionsfunktion, sign: " << sign << ", sign*b[i]: " << a[1] + sign*b[1] << endl;
+//   print_vektor(a);
+//   print_vektor(b);
+//   print_vektor(c);
+//   cout << "ende funktion" << endl;
 }
 
 vektor mult_matrix_vektor(matrix A, vektor x){
@@ -113,20 +105,6 @@ vektor mult_matrix_vektor(matrix A, vektor x){
     for (int j=0; j<N; ++j){
       c[i] += A[i][j]*x[j];
     }
-  }
-  return c;
-}
-
-vektor laplace(vektor x, double m2){
-  vektor c = malloc_vektor(N);
-//   #pragma omp parallel for
-  for (int i=0; i<nvol; ++i){
-    c[i] = (2*ndim + m2)*x[i];
-    for (int j=1; j<=ndim; ++j){
-//       cout << "laplace: " << nn[j][i] << " " << nn[ndim+j][i] << endl;
-      c[i] -= x[nn[j][i]] + x[nn[ndim+j][i]];
-    }
-//     cout << c[i] << endl;
   }
   return c;
 }
@@ -142,18 +120,6 @@ void laplace(vektor x, double m2, vektor c){
   return;
 }
 
-vektor mult_skalar_vektor(double alpha, vektor x){
-  cout << "begin function" << endl;
-  vektor c = malloc_vektor(N);
-  cout << "after malloc" << endl;
-//   #pragma omp parallel for
-  for (int i=0; i<N; ++i){
-    c[i] = alpha*x[i];
-  }
-  print_vektor(c);
-  return c;
-}
-
 void mult_skalar_vektor(double alpha, vektor x, vektor c){
 //   #pragma omp parallel for
   for (int i=0; i<N; ++i){
@@ -164,61 +130,73 @@ void mult_skalar_vektor(double alpha, vektor x, vektor c){
 
 double skalarprodukt(vektor a, vektor b){
   double erg = 0;
-  int i;
 //   #pragma omp parallel for reduction(+:erg)
-  for (i=0; i<N; ++i){
+  for (int i=0; i<N; ++i){
     erg += a[i]*b[i];
   }
   return erg;
 }
 
 vektor cg(int N, matrix A, vektor x, vektor b, int max_it, double relerr, bool flag){
-  vektor r;
+  vektor r = malloc_vektor(N);
   double tol = relerr*relerr*skalarprodukt(b, b);
   double m = 0.1;
   double m2 = m*m;
+  vektor dummyvec = malloc_vektor(N);
+  vektor dummyvec2 = malloc_vektor(N);
 
   if (flag){
-    r = vec_copy(b);
+    vec_copy(b, r);
     for (int i=0; i<N; ++i){
       x[i] = 0.;
     }
   }
-  else r = vec_addition(b, mult_matrix_vektor(A,x), -1);
+  else{
+    dummyvec = mult_matrix_vektor(A,x);
+    vec_addition(b, dummyvec, r, -1);
+  }
 
   if (skalarprodukt(r, r) < tol) exit(0);
 
-  vektor p = vec_copy(r);
+  vektor p = malloc_vektor(N);
+  vec_copy(r, p);
   vektor s = malloc_vektor(N);
   double alpha, r2_alt, r2_neu, beta;
   int counter = 0;
-  vektor dummyvec = malloc_vektor(N);
-//   vektor y = malloc_vektor(N);
+
+//  checked
 
   for (int i=0; i<max_it; ++i){
+//     print_vektor(p);
     laplace(p, m2, s);
+//     print_vektor(s);         // s =ca.= +-3*p
     alpha = skalarprodukt(p, r) / skalarprodukt(p, s);
-    mult_skalar_vektor(alpha, p, dummyvec);
-    vec_addition(x, dummyvec, x);		        // neues x_(k+1)
+//     cout << "alpha: " << alpha << endl;              // alpha wird schnell klein
+//     print_vektor(p);
+//     mult_skalar_vektor(alpha, p, dummyvec);
+//     print_vektor(dummyvec);
+//     vec_addition(x, dummyvec, dummyvec2);		        // neues x_(k+1)
     r2_alt = skalarprodukt(r, r);			// r²_k;
-    cout << "alpha = " << alpha << endl;
-    mult_skalar_vektor(alpha, s, dummyvec);
-    vec_addition(r, dummyvec, r, -1);	                // neues r_(k+1)
+    mult_skalar_vektor(alpha, s, dummyvec);                     //checked
+    print_vektor(dummyvec);
+    vec_addition(r, dummyvec, dummyvec2, -1);	                // neues r_(k+1), checked
+    vec_copy(dummyvec2, r);
     r2_neu = skalarprodukt(r, r);			// r²_(k+1)
     if (r2_neu < tol) break;
     beta = r2_neu / r2_alt;
-    mult_skalar_vektor(beta, p, dummyvec);
-    vec_addition(r, dummyvec, p);               	// neues p_(k+1)
+    mult_skalar_vektor(beta, p, dummyvec);              // checked
+    vec_addition(r, dummyvec, p);               	// neues p_(k+1), checked
     ++counter;
-    cout << i << " " << r2_neu << " " << beta << endl;
-    print_vektor(p);
-    print_vektor(s);
-    print_vektor(x);
-    print_vektor(r);
+    cout << "r2_k und r2_(k+1): " << r2_alt << " " << r2_neu << endl;
+    cout << "i: " << i << ", beta: " << beta << endl;
+//     print_vektor(p);
+//     print_vektor(s);
+//     print_vektor(x);
+//     print_vektor(r);
   }
 
   cout << "Anzahl von Schritten: " << counter << endl;
-  return x;
+  return dummyvec2;
 }
 
 void print_vektor(vektor x){
@@ -267,7 +245,6 @@ void geom_pbc(){
   ibase[1] = 1;
   for (k=1; k<=ndim; k++) ibase[k+1] = ibase[k]*lsize[k];
   nvol = ibase[ndim+1];
-  cout << "vol: " << nvol << endl;
 
   if (nn) free(nn[0]);
   free(nn);
