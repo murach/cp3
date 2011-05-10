@@ -7,8 +7,6 @@
 
 #include <TRandom3.h>
 
-// #include "global.h"
-
 using std::string;
 using std::cout;
 using std::endl;
