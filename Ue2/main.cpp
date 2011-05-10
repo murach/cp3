@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
-// #include <omp.h>
+#include <omp.h>
 
 #include <TRandom3.h>
 
@@ -16,11 +16,11 @@ using std::endl;
 typedef double *vektor;
 typedef double **matrix;
 
-const int N = 3;
-// #define N 3
+#define N 9
+#define ndim 2
 
-matrix malloc_matrix(int N);
-inline vektor malloc_vektor(int N){ return new double[N]; }
+matrix malloc_matrix();
+inline vektor malloc_vektor(){ return new double[N*N]; }
 void vec_copy(vektor a, vektor b);
 void vec_addition(vektor a, vektor b, vektor c, int sign = 1);
 vektor mult_matrix_vektor(matrix A, vektor x);
@@ -30,11 +30,10 @@ void print_vektor(vektor x);
 void print_matrix(matrix A);
 void laplace(vektor x, double m2, vektor c);
 
-vektor cg(int N, matrix A, vektor x, vektor b, int max_it, double relerr = 1e-10, bool flag = 1);
+void cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_it, double relerr = 1e-10, bool flag = 1);
 void geom_pbc();
 
 int **nn;
-const int ndim=2;
 int lsize[ndim+1] = {0,N,N};
 int nvol;
 
@@ -42,29 +41,23 @@ int main(int argc, char *argv[]) {
 
     TRandom3 *ran = new TRandom3(0);
 
-    vektor eta = malloc_vektor(N);
-//     double eta[N];
-    vektor phi = malloc_vektor(N);
-//     double phi[N];
+    double eta[N*N];
+    double phi[N*N];
     geom_pbc();
 
-    matrix A = malloc_matrix(N);
+//     matrix A = malloc_matrix();
 //     double A[N][N];
-//     double dummy = 0.;
 
-    for (int i=0; i<N; ++i){
+    for (int i=0; i<nvol; ++i){
       eta[i] = ran->Uniform();
     }
 
-//     print_matrix(A);
-    vektor x2 = malloc_vektor(N);
-//     double x2[N];
-    vec_copy(cg(N, A, phi, eta, 100, 1e-10, 1), x2);
+    cg(phi, eta, laplace, 1000, 1e-10, 1);
 
     return 0;
 }
 
-matrix malloc_matrix(int N)
+matrix malloc_matrix()
 {
   matrix feld;
   feld = (matrix)malloc(N*sizeof(vektor));
@@ -79,7 +72,7 @@ matrix malloc_matrix(int N)
 }
 
 void vec_copy(vektor a, vektor b){
-  for (int i=0; i<N; ++i){
+  for (int i=0; i<nvol; ++i){
     b[i] = a[i];
   }
   return;
@@ -87,13 +80,13 @@ void vec_copy(vektor a, vektor b){
 
 void vec_addition(vektor a, vektor b, vektor c, int sign){      // sign: defaultparameter +1
   sign = (sign>0) ? 1 : -1;
-  for (int i=0; i<N; ++i){
+  for (int i=0; i<nvol; ++i){
     c[i] = a[i] + sign*b[i];
   }
 }
 
 vektor mult_matrix_vektor(matrix A, vektor x){
-  vektor c = malloc_vektor(N);
+  vektor c = malloc_vektor();
 //   #pragma omp parallel for
   for (int i=0; i<N; ++i){
     c[i] = 0.;
@@ -105,7 +98,7 @@ vektor mult_matrix_vektor(matrix A, vektor x){
 }
 
 void laplace(vektor x, double m2, vektor c){
-//   #pragma omp parallel for
+  #pragma omp parallel for
   for (int i=0; i<nvol; ++i){
     c[i] = (2*ndim + m2)*x[i];
     for (int j=1; j<=ndim; ++j){
@@ -116,8 +109,8 @@ void laplace(vektor x, double m2, vektor c){
 }
 
 void mult_skalar_vektor(double alpha, vektor x, vektor c){
-//   #pragma omp parallel for
-  for (int i=0; i<N; ++i){
+  #pragma omp parallel for
+  for (int i=0; i<nvol; ++i){
     c[i] = alpha*x[i];
   }
   return;
@@ -125,55 +118,47 @@ void mult_skalar_vektor(double alpha, vektor x, vektor c){
 
 double skalarprodukt(vektor a, vektor b){
   double erg = 0;
-//   #pragma omp parallel for reduction(+:erg)
-  for (int i=0; i<N; ++i){
+  #pragma omp parallel for reduction(+:erg)
+  for (int i=0; i<nvol; ++i){
     erg += a[i]*b[i];
   }
   return erg;
 }
 
-vektor cg(int N, matrix A, vektor x, vektor b, int max_it, double relerr, bool flag){
-  vektor r = malloc_vektor(N);
+void cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_it, double relerr, bool flag){
+  double r[N*N];
   double tol = relerr*relerr*skalarprodukt(b, b);
   double m = 0.1;
   double m2 = m*m;
-  vektor dummyvec = malloc_vektor(N);
-  vektor dummyvec2 = malloc_vektor(N);
+  double dummyvec[N*N];
+  double dummyvec2[N*N];
 
   if (flag){
     vec_copy(b, r);
-    for (int i=0; i<N; ++i){
+    for (int i=0; i<nvol; ++i){
       x[i] = 0.;
     }
   }
-  else{
-    dummyvec = mult_matrix_vektor(A,x);
-    vec_addition(b, dummyvec, r, -1);
-  }
+//   else{
+//     dummyvec = mult_matrix_vektor(A,x);
+//     vec_addition(b, dummyvec, r, -1);
+//   }
 
   if (skalarprodukt(r, r) < tol) exit(0);
 
-  vektor p = malloc_vektor(N);
+  double p[N*N];
   vec_copy(r, p);
-  vektor s = malloc_vektor(N);
+  double s[N*N];
   double alpha, r2_alt, r2_neu, beta;
   int counter = 0;
 
-//  checked
-
   for (int i=0; i<max_it; ++i){
-//     print_vektor(p);
-    laplace(p, m2, s);
-//     print_vektor(s);         // s =ca.= +-3*p
+    fkt(p, m2, s);
     r2_alt = skalarprodukt(r, r);                       // r²_k;
     alpha = r2_alt / skalarprodukt(p, s);
-//     cout << "alpha: " << alpha << endl;              // alpha wird schnell klein
-//     print_vektor(p);
 //     mult_skalar_vektor(alpha, p, dummyvec);
-//     print_vektor(dummyvec);
 //     vec_addition(x, dummyvec, dummyvec2);		        // neues x_(k+1)
     mult_skalar_vektor(alpha, s, dummyvec);                     //checked; dummyvec = alpha * s
-//     print_vektor(dummyvec);
     vec_addition(r, dummyvec, dummyvec2, -1);	                // neues r_(k+1), checked; dummyvec2 = r - dummyvec
     vec_copy(dummyvec2, r);                                     // r = dummyvec2
     r2_neu = skalarprodukt(r, r);			// r²_(k+1)
@@ -182,21 +167,18 @@ vektor cg(int N, matrix A, vektor x, vektor b, int max_it, double relerr, bool f
     mult_skalar_vektor(beta, p, dummyvec);              // checked; dummyvec = beta * p
     vec_addition(r, dummyvec, p);               	// neues p_(k+1), checked; p = r + dummyvec
     ++counter;
-    cout << "r2_k und r2_(k+1): " << r2_alt << " " << r2_neu << endl;
-    cout << "i: " << i << ", alpha: " << alpha << ", beta: " << beta << endl;
   }
 
   cout << "Anzahl von Schritten: " << counter << endl;
-  return dummyvec2;
+  return;
 }
 
 void print_vektor(vektor x){
   cout << "[";
-  for (int i=0; i<N; ++i){
+  for (int i=0; i<nvol; ++i){
     cout << " " << x[i];
   }
   cout << " ]" << endl;
-
   return;
 }
 
@@ -207,7 +189,6 @@ void print_matrix(matrix A){
     }
     cout << endl;
   }
-
   return;
 }
 
@@ -245,13 +226,8 @@ void geom_pbc(){
 
   for (k=1; k<=ndim; k++) ix[k] = 0;   /* Koord. des Anfangspunkts */
 
-  for (int i=0; i<N; ++i){
-    for (int j=0; j<N; ++j){
-      nn[i][j] = 0;		       /* Feld mit nullen belegen */
-    }
-  }
-
   for (i=0; i<nvol; i++){           /* Schleife ueber Punkte */
+    nn[0][i] = 0;
     for (k=1; k<=ndim; k++){
       nn[k][i] = i + ibase[k];      /* Nachbar x + e_k */
       if (ix[k] == (lsize[k]-1)){
