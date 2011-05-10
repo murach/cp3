@@ -19,16 +19,17 @@ typedef double **matrix;
 #define N 9
 #define ndim 2
 
-matrix malloc_matrix();
+void init_matrix();
 inline vektor malloc_vektor(){ return new double[N*N]; }
 void vec_copy(vektor a, vektor b);
 void vec_addition(vektor a, vektor b, vektor c, int sign = 1);
-vektor mult_matrix_vektor(matrix A, vektor x);
+void mult_matrix_vektor(matrix A, vektor x, vektor c);
 void mult_skalar_vektor(double alpha, vektor x, vektor c);
 double skalarprodukt(vektor a, vektor b);
 void print_vektor(vektor x);
 void print_matrix(matrix A);
 void laplace(vektor x, double m2, vektor c);
+void dirichlet(vektor x, double m2, vektor c);
 
 void cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_it, double relerr = 1e-10, bool flag = 1);
 void geom_pbc();
@@ -36,6 +37,7 @@ void geom_pbc();
 int **nn;
 int lsize[ndim+1] = {0,N,N};
 int nvol;
+matrix A;
 
 int main(int argc, char *argv[]) {
 
@@ -44,31 +46,35 @@ int main(int argc, char *argv[]) {
     double eta[N*N];
     double phi[N*N];
     geom_pbc();
+    init_matrix();
 
-//     matrix A = malloc_matrix();
-//     double A[N][N];
-
+    double dummy;
     for (int i=0; i<nvol; ++i){
+      for (int j=0; j<nvol; ++j){
+        dummy = ran->Uniform();
+        A[i][j] = dummy;
+        A[j][i] = dummy;
+      }
       eta[i] = ran->Uniform();
     }
 
     cg(phi, eta, laplace, 1000, 1e-10, 1);
+    cg(phi, eta, dirichlet, 1000, 1e-10, 1);
 
     return 0;
 }
 
-matrix malloc_matrix()
+void init_matrix()
 {
-  matrix feld;
-  feld = (matrix)malloc(N*sizeof(vektor));
-  feld[0] = (vektor)malloc(N*N*sizeof(double));
-  if(feld[0] == NULL) {
+  A = (matrix)malloc(nvol*sizeof(vektor));
+  A[0] = (vektor)malloc(nvol*nvol*sizeof(double));
+  if(A[0] == NULL) {
     fprintf(stderr, "Not enough memory for allocating matrix\n");
     exit(1);
   }
-  for(int x = 1; x < N; x++)
-    feld[x] = feld[0] + N * x;
-  return feld;
+  for(int i=1; i<nvol; ++i)
+    A[i] = A[0] + nvol*i;
+  return;
 }
 
 void vec_copy(vektor a, vektor b){
@@ -85,8 +91,7 @@ void vec_addition(vektor a, vektor b, vektor c, int sign){      // sign: default
   }
 }
 
-vektor mult_matrix_vektor(matrix A, vektor x){
-  vektor c = malloc_vektor();
+void mult_matrix_vektor(matrix A, vektor x, vektor c){
 //   #pragma omp parallel for
   for (int i=0; i<N; ++i){
     c[i] = 0.;
@@ -94,11 +99,11 @@ vektor mult_matrix_vektor(matrix A, vektor x){
       c[i] += A[i][j]*x[j];
     }
   }
-  return c;
+  return;
 }
 
 void laplace(vektor x, double m2, vektor c){
-  #pragma omp parallel for
+//   #pragma omp parallel for reduction() private() oder so
   for (int i=0; i<nvol; ++i){
     c[i] = (2*ndim + m2)*x[i];
     for (int j=1; j<=ndim; ++j){
@@ -106,6 +111,20 @@ void laplace(vektor x, double m2, vektor c){
     }
   }
   return;
+}
+
+void dirichlet(vektor x, double m2, vektor c){
+  for (int i=0; i<nvol; ++i){
+    if (nn[0][i] == 1){
+      c[i]=0;
+    }
+    else{
+      c[i] = 2*ndim*x[i];
+      for (int j=1; j<=ndim; ++j){
+        c[i] -= x[nn[j][i]] + x[nn[ndim+j][i]];
+      }
+    }
+  }
 }
 
 void mult_skalar_vektor(double alpha, vektor x, vektor c){
@@ -139,10 +158,10 @@ void cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_
       x[i] = 0.;
     }
   }
-//   else{
-//     dummyvec = mult_matrix_vektor(A,x);
-//     vec_addition(b, dummyvec, r, -1);
-//   }
+  else{
+    mult_matrix_vektor(A, x, dummyvec);
+    vec_addition(b, dummyvec, r, -1);
+  }
 
   if (skalarprodukt(r, r) < tol) exit(0);
 
@@ -156,15 +175,15 @@ void cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_
     fkt(p, m2, s);
     r2_alt = skalarprodukt(r, r);                       // r²_k;
     alpha = r2_alt / skalarprodukt(p, s);
-//     mult_skalar_vektor(alpha, p, dummyvec);
-//     vec_addition(x, dummyvec, dummyvec2);		        // neues x_(k+1)
-    mult_skalar_vektor(alpha, s, dummyvec);                     //checked; dummyvec = alpha * s
-    vec_addition(r, dummyvec, dummyvec2, -1);	                // neues r_(k+1), checked; dummyvec2 = r - dummyvec
+    mult_skalar_vektor(alpha, p, dummyvec);
+    vec_addition(x, dummyvec, dummyvec2);		        // neues x_(k+1)
+    mult_skalar_vektor(alpha, s, dummyvec);                     //dummyvec = alpha * s
+    vec_addition(r, dummyvec, dummyvec2, -1);	                // neues r_(k+1); dummyvec2 = r - dummyvec
     vec_copy(dummyvec2, r);                                     // r = dummyvec2
     r2_neu = skalarprodukt(r, r);			// r²_(k+1)
     if (r2_neu < tol) break;
     beta = r2_neu / r2_alt;
-    mult_skalar_vektor(beta, p, dummyvec);              // checked; dummyvec = beta * p
+    mult_skalar_vektor(beta, p, dummyvec);              // dummyvec = beta * p
     vec_addition(r, dummyvec, p);               	// neues p_(k+1), checked; p = r + dummyvec
     ++counter;
   }
