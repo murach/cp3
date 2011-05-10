@@ -14,7 +14,7 @@ using std::endl;
 typedef double *vektor;
 typedef double **matrix;
 
-#define N 9
+#define N 8
 #define ndim 2
 
 void init_matrix();
