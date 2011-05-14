@@ -14,7 +14,7 @@ using std::endl;
 typedef double *vektor;
 typedef double **matrix;
 
-#define N 8
+#define N 100
 #define ndim 2
 
 void init_matrix();
@@ -57,6 +57,12 @@ int main(int argc, char *argv[]) {
     }
 
     cg(phi, eta, laplace, 1000, 1e-10, 1);
+    
+    for (int i=0; i<nvol; ++i){
+      if (nn[0][i] == 1){
+	  eta[i] = 0;
+      }
+    }
     cg(phi, eta, dirichlet, 1000, 1e-10, 1);
 
     return 0;
@@ -76,6 +82,7 @@ void init_matrix()
 }
 
 void vec_copy(vektor a, vektor b){
+  #pragma omp parallel for
   for (int i=0; i<nvol; ++i){
     b[i] = a[i];
   }
@@ -84,6 +91,7 @@ void vec_copy(vektor a, vektor b){
 
 void vec_addition(vektor a, vektor b, vektor c, int sign){      // sign: defaultparameter +1
   sign = (sign>0) ? 1 : -1;
+  #pragma omp parallel for
   for (int i=0; i<nvol; ++i){
     c[i] = a[i] + sign*b[i];
   }
@@ -114,7 +122,7 @@ void laplace(vektor x, double m2, vektor c){
 void dirichlet(vektor x, double m2, vektor c){
   for (int i=0; i<nvol; ++i){
     if (nn[0][i] == 1){
-      c[i]=0;
+      c[i] = 0;
     }
     else{
       c[i] = 2*ndim*x[i];
