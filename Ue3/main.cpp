@@ -35,23 +35,6 @@ void dirichlet(vektor x, double m2, vektor c);
 void cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_it, double relerr = 1e-10, bool flag = 1);
 void geom_pbc();
 
-// class TimeDate {
-//   time_t systime;
-//   public:
-//     TimeDate(time_t t); // constructor
-//     void show();
-// };
-// 
-// TimeDate::TimeDate(time_t t)
-// {
-//   systime = t;
-// }
-// 
-// void TimeDate::show()
-// {
-//   cout << ctime(&systime);
-// }
-
 struct tms usage;
 double cputime1, cputime2;
 
@@ -87,19 +70,15 @@ int main(int argc, char *argv[]) {
       eta[i] = ran->Uniform();
     }
 
-//     time_t x;
-//     x = time(NULL);
-//     TimeDate ob(x);
-//     ob.show();
     times(&usage);
     cputime1 = ((double)usage.tms_utime)/sysconf(_SC_CLK_TCK);
+    cout << "1: " << cputime1 << ", int oder so: " << usage.tms_utime << endl;
 
-    start_clock();
+//     start_clock();
     cg(phi, eta, laplace, 1000, 1e-10, 1);
-    end_clock();                // http://pubs.opengroup.org/onlinepubs/009695399/functions/times.html
+//     end_clock();                // http://pubs.opengroup.org/onlinepubs/009695399/functions/times.html
     cputime2 = ((double)usage.tms_utime)/sysconf(_SC_CLK_TCK);
-//     cout << "Zeit: " << cputime2 << endl;
-//     ob.show();
+    cout << "Zeit1: " << cputime1 << ", Zeit2: " << cputime2 << ", ticks / sec: " << sysconf(_SC_CLK_TCK) << endl;
 
     for (int i=0; i<nvol; ++i){
       if (nn[0][i] == 1){
@@ -120,7 +99,8 @@ void end_clock()
 {
   en_time = times(&en_cpu);
 
-  cout << "Real Time: " << en_time - st_time << ", User Time " << en_cpu.tms_utime - st_cpu.tms_utime << ", System Time " << en_cpu.tms_stime - st_cpu.tms_stime << endl;
+  cout << "Real Time: " << (en_time - st_time)*1./sysconf(_SC_CLK_TCK) << ", System Time " << (en_cpu.tms_stime - st_cpu.tms_stime)*1./sysconf(_SC_CLK_TCK) << endl;
+  cout << "sys clock ticks per sec: " << sysconf(_SC_CLK_TCK) << endl;
 }
 
 

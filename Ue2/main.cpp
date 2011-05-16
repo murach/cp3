@@ -109,7 +109,7 @@ void mult_matrix_vektor(matrix A, vektor x, vektor c){
 }
 
 void laplace(vektor x, double m2, vektor c){
-//   #pragma omp parallel for reduction() private() oder so
+//   #pragma omp parallel for reduction() private() oder so; wie geht das mit den vektor-elementen?
   for (int i=0; i<nvol; ++i){
     c[i] = (2*ndim + m2)*x[i];
     for (int j=1; j<=ndim; ++j){
