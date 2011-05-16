@@ -1,5 +1,8 @@
 #include <string>
 #include <iostream>
+// #include <ctime>
+#include <sys/times.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
@@ -32,6 +35,34 @@ void dirichlet(vektor x, double m2, vektor c);
 void cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_it, double relerr = 1e-10, bool flag = 1);
 void geom_pbc();
 
+// class TimeDate {
+//   time_t systime;
+//   public:
+//     TimeDate(time_t t); // constructor
+//     void show();
+// };
+// 
+// TimeDate::TimeDate(time_t t)
+// {
+//   systime = t;
+// }
+// 
+// void TimeDate::show()
+// {
+//   cout << ctime(&systime);
+// }
+
+struct tms usage;
+double cputime1, cputime2;
+
+void start_clock(void);
+void end_clock(void);
+
+static clock_t st_time;
+static clock_t en_time;
+static struct tms st_cpu;
+static struct tms en_cpu;
+
 int **nn;
 int lsize[ndim+1] = {0,N,N};
 int nvol;
@@ -56,17 +87,42 @@ int main(int argc, char *argv[]) {
       eta[i] = ran->Uniform();
     }
 
+//     time_t x;
+//     x = time(NULL);
+//     TimeDate ob(x);
+//     ob.show();
+    times(&usage);
+    cputime1 = ((double)usage.tms_utime)/sysconf(_SC_CLK_TCK);
+
+    start_clock();
     cg(phi, eta, laplace, 1000, 1e-10, 1);
-    
+    end_clock();                // http://pubs.opengroup.org/onlinepubs/009695399/functions/times.html
+    cputime2 = ((double)usage.tms_utime)/sysconf(_SC_CLK_TCK);
+//     cout << "Zeit: " << cputime2 << endl;
+//     ob.show();
+
     for (int i=0; i<nvol; ++i){
       if (nn[0][i] == 1){
-	  eta[i] = 0;
+        eta[i] = 0;
       }
     }
     cg(phi, eta, dirichlet, 1000, 1e-10, 1);
 
     return 0;
 }
+
+void start_clock()
+{
+  st_time = times(&st_cpu);
+}
+
+void end_clock()
+{
+  en_time = times(&en_cpu);
+
+  cout << "Real Time: " << en_time - st_time << ", User Time " << en_cpu.tms_utime - st_cpu.tms_utime << ", System Time " << en_cpu.tms_stime - st_cpu.tms_stime << endl;
+}
+
 
 void init_matrix()
 {
