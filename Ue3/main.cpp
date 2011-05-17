@@ -22,17 +22,17 @@ typedef double **matrix;
 
 void init_matrix();
 inline vektor malloc_vektor(){ return new double[N*N]; }
-void vec_copy(vektor a, vektor b);
-void vec_addition(vektor a, vektor b, vektor c, int sign = 1);
+inline void vec_copy(vektor a, vektor b);
+inline void vec_addition(vektor a, vektor b, vektor c, int sign = 1);
 void mult_matrix_vektor(matrix A, vektor x, vektor c);
-void mult_skalar_vektor(double alpha, vektor x, vektor c);
-double skalarprodukt(vektor a, vektor b);
+inline void mult_skalar_vektor(double alpha, vektor x, vektor c);
+inline double skalarprodukt(vektor a, vektor b);
 void print_vektor(vektor x);
 void print_matrix(matrix A);
 void laplace(vektor x, double m2, vektor c);
 void dirichlet(vektor x, double m2, vektor c);
 
-void cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_it, double relerr = 1e-10, bool flag = 1);
+int cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_it, double relerr = 1e-10, bool flag = 1);
 void geom_pbc();
 
 struct tms usage;
@@ -65,13 +65,17 @@ int main(int argc, char *argv[]) {
     times(&usage);
     cputime1 = ((double)usage.tms_utime)/sysconf(_SC_CLK_TCK);
 
-    cg(phi, eta, laplace, 1000, 1e-10, 1);
+    int steps = cg(phi, eta, laplace, 1000, 1e-10, 1);
+
     times(&usage);
     cputime2 = ((double)usage.tms_utime)/sysconf(_SC_CLK_TCK);
     double tdiff = cputime2 - cputime1;
+    int flops = 8+2*N + steps*((1+2*ndim)*N*N + 12*N + 2);
+    cout << "Flops: " << flops << endl;
     cout << "Zeit:  " << tdiff << endl;
-    cout << "Flops: " << 91411/tdiff << endl;
-    cout << "Zeit pro Gitterpunkt: " << tdiff/10000 << endl;
+    cout << "Zeit/Gitterpunkt: " << tdiff/nvol << endl;
+    cout << "Flops/Gitterpunkt: " << flops/nvol << endl;
+    cout << "Flops/sec: " << steps*((1+2*ndim)*N*N + 14*N + 11)/tdiff << endl;
 
     for (int i=0; i<nvol; ++i){
       if (nn[0][i] == 1){
@@ -124,14 +128,18 @@ void mult_matrix_vektor(matrix A, vektor x, vektor c){
 }
 
 void laplace(vektor x, double m2, vektor c){
+  double dummy = 0;
+  int j = 0;
+  #pragma omp parallel for private(j) reduction(-:dummy)
 //   #pragma omp parallel for reduction() private() oder so
   for (int i=0; i<nvol; ++i){
-    c[i] = (2*ndim + m2)*x[i];
-    for (int j=1; j<=ndim; ++j){
-      c[i] -= x[nn[j][i]] + x[nn[ndim+j][i]];
+    dummy = (2*ndim + m2)*x[i];
+    for (j=1; j<=ndim; ++j){
+      dummy -= x[nn[j][i]] + x[nn[ndim+j][i]];
     }
+    c[i] = dummy;
   }
-  // anzahl rechenschritte: N*N*(3 + ndim*3) = 90000
+  // anzahl rechenschritte: N*N*(1 + ndim*2)
   return;
 }
 
@@ -166,7 +174,7 @@ double skalarprodukt(vektor a, vektor b){
   return erg;
 }
 
-void cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_it, double relerr, bool flag){
+int cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_it, double relerr, bool flag){
   double r[N*N];
   double tol = relerr*relerr*skalarprodukt(b, b);
   double m = 0.1;
@@ -209,10 +217,10 @@ void cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_
     vec_addition(r, dummyvec, p);               	// neues p_(k+1), checked; p = r + dummyvec
     ++counter;
   }
-//   Anzahl der Rechenschritte: 1+2+2*N+1+2 + 1+1 + N*N*(3 + ndim*3) + 2*N + 2*N+1 + N + N + N+N + 2*N + 1 + N + N + 1 = (3+3ndim)*N^2 + 14*N + 11 = 91411
+//   Anzahl der Rechenschritte: 1 + 2 + 2*N + 1 + 2 + 1 + 1 + counter*(N*N*(1 + ndim*2) + 2*N + 1+2*N+N+N+N+N + 2*N + 1 + N + N) = 8+2N + counter*((1+2ndim)*N*N + 12N + 2)
 
   cout << "Anzahl von Schritten: " << counter << endl;
-  return;
+  return counter;
 }
 
 void print_vektor(vektor x){
