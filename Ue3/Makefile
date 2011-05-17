@@ -1,4 +1,4 @@
-CXXFLAGS=`root-config --cflags` -Wall -O3 -fopenmp -g
+CXXFLAGS=`root-config --cflags` -Wall -fopenmp -g
 LDLIBS=`root-config --libs` -lgomp
 CC = g++
 

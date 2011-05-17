@@ -9,12 +9,13 @@
 
 using std::string;
 using std::cout;
+using std::cerr;
 using std::endl;
 
 typedef double *vektor;
 typedef double **matrix;
 
-#define N 100
+#define N 10
 #define ndim 2
 
 void init_matrix();
@@ -27,9 +28,9 @@ inline double skalarprodukt(vektor a, vektor b);
 void print_vektor(vektor x);
 void print_matrix(matrix A);
 void laplace(vektor x, double m2, vektor c);
-void dirichlet(vektor x, double m2, vektor c);
+double vektor_norm(vektor x);
 
-int cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_it, double relerr = 1e-10, bool flag = 1);
+int cg(vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_it, double relerr = 1e-10);
 void geom_pbc();
 
 int **nn;
@@ -41,10 +42,9 @@ int main(int argc, char *argv[]) {
 
     TRandom3 *ran = new TRandom3(0);
 
-    double eta[N*N];
-    double phi[N*N];
     geom_pbc();
     init_matrix();
+    double s[nvol];
 
     double dummy;
     for (int i=0; i<nvol; ++i){
@@ -53,19 +53,11 @@ int main(int argc, char *argv[]) {
         A[i][j] = dummy;
         A[j][i] = dummy;
       }
-      eta[i] = ran->Uniform();
+      s[i] = ran->Uniform();
     }
 
-    int steps = cg(phi, eta, laplace, 1000, 1e-10, 1);
+    int steps = cg(s, laplace, 1000, 1e-10);
     cout << "Anzahl der Schritte, Laplace: " << steps << endl;
-
-    for (int i=0; i<nvol; ++i){
-      if (nn[0][i] == 1){
-        eta[i] = 0;
-      }
-    }
-    steps = cg(phi, eta, dirichlet, 1000, 1e-10, 1);
-    cout << "Anzahl der Schritte, Dirichlet: " << steps << endl;
 
     return 0;
 }
@@ -101,9 +93,9 @@ void vec_addition(vektor a, vektor b, vektor c, int sign){      // sign: default
 
 void mult_matrix_vektor(matrix A, vektor x, vektor c){
 //   #pragma omp parallel for
-  for (int i=0; i<N; ++i){
+  for (int i=0; i<nvol; ++i){
     c[i] = 0.;
-    for (int j=0; j<N; ++j){
+    for (int j=0; j<nvol; ++j){
       c[i] += A[i][j]*x[j];
     }
   }
@@ -126,18 +118,8 @@ void laplace(vektor x, double m2, vektor c){
   return;
 }
 
-void dirichlet(vektor x, double m2, vektor c){
-  for (int i=0; i<nvol; ++i){
-    if (nn[0][i] == 1){
-      c[i] = 0;
-    }
-    else{
-      c[i] = 2*ndim*x[i];
-      for (int j=1; j<=ndim; ++j){
-        c[i] -= x[nn[j][i]] + x[nn[ndim+j][i]];
-      }
-    }
-  }
+double vektor_norm(vektor x){
+  return sqrt(skalarprodukt(x,x));
 }
 
 void mult_skalar_vektor(double alpha, vektor x, vektor c){
@@ -157,50 +139,48 @@ double skalarprodukt(vektor a, vektor b){
   return erg;
 }
 
-int cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_it, double relerr, bool flag){
-  double r[N*N];
-  double tol = relerr*relerr*skalarprodukt(b, b);
-  double m = 0.1;
-  double m2 = m*m;
-  double dummyvec[N*N];
-  double dummyvec2[N*N];
+int cg(vektor s, void (*fkt)(vektor x, double m2, vektor c), int max_it, double relerr){
+  double v[nvol];
+  double q[nvol];
+  double v_neu[nvol];
+  double tol = relerr*relerr*skalarprodukt(s, s);
+  double dummyvec[nvol];
+  double dummyvec2[nvol];
 
-  if (flag){
-    vec_copy(b, r);
-    for (int i=0; i<nvol; ++i){
-      x[i] = 0.;
-    }
-  }
-  else{
-    mult_matrix_vektor(A, x, dummyvec);
-    vec_addition(b, dummyvec, r, -1);
-  }
+  double s_norm = vektor_norm(s);
+  if (vektor_norm(s) < sqrt(tol)) exit(0);
 
-  if (skalarprodukt(r, r) < tol) exit(0);
+  mult_skalar_vektor(1/s_norm, s, dummyvec);
+  vec_copy(dummyvec, v);
+//   print_vektor(v);
 
-  double p[N*N];
-  vec_copy(r, p);
-  double s[N*N];
-  double alpha, r2_alt, r2_neu, beta;
+  mult_matrix_vektor(A, v, q);
+//   print_vektor(q);
+
+  double alpha, beta;
   int counter = 0;
 
   for (int i=0; i<max_it; ++i){
-    fkt(p, m2, s);
-    r2_alt = skalarprodukt(r, r);                       // r²_k;
-    alpha = r2_alt / skalarprodukt(p, s);
-    mult_skalar_vektor(alpha, p, dummyvec);
-    vec_addition(x, dummyvec, dummyvec2);		        // neues x_(k+1)
-    mult_skalar_vektor(alpha, s, dummyvec);                     //dummyvec = alpha * s
-    vec_addition(r, dummyvec, dummyvec2, -1);	                // neues r_(k+1); dummyvec2 = r - dummyvec
-    vec_copy(dummyvec2, r);                                     // r = dummyvec2
-    r2_neu = skalarprodukt(r, r);			// r²_(k+1)
-    if (r2_neu < tol) break;
-    beta = r2_neu / r2_alt;
-    mult_skalar_vektor(beta, p, dummyvec);              // dummyvec = beta * p
-    vec_addition(r, dummyvec, p);               	// neues p_(k+1), checked; p = r + dummyvec
+    alpha = skalarprodukt(v, q);
+//     cout << alpha << endl;
+
+    mult_skalar_vektor(alpha, v, dummyvec);
+    vec_addition(q, dummyvec, dummyvec2, -1);
+    vec_copy(dummyvec2, q);
+
+    beta = vektor_norm(q);
+    cout << beta << endl;
+    if (beta < tol) break;
+    mult_skalar_vektor(1/beta, q, v_neu);
+
+    mult_matrix_vektor(A, v_neu, dummyvec);
+    mult_skalar_vektor(beta, v, dummyvec2);
+    vec_addition(dummyvec, dummyvec2, q, -1);
+
+    vec_copy(v_neu, v);
+
     ++counter;
   }
-//   Anzahl der Rechenschritte: 1 + 2 + 2*N + 1 + 2 + 1 + 1 + counter*(N*N*(1 + ndim*2) + 2*N + 1+2*N+N+N+N+N + 2*N + 1 + N + N) = 8+2N + counter*((1+2ndim)*N*N + 12N + 2)
 
   return counter;
 }
