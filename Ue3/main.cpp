@@ -2,7 +2,7 @@
 #include <iostream>
 // #include <ctime>
 #include <sys/times.h>
-#include <unistd.h>
+// #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
@@ -38,14 +38,6 @@ void geom_pbc();
 struct tms usage;
 double cputime1, cputime2;
 
-void start_clock(void);
-void end_clock(void);
-
-static clock_t st_time;
-static clock_t en_time;
-static struct tms st_cpu;
-static struct tms en_cpu;
-
 int **nn;
 int lsize[ndim+1] = {0,N,N};
 int nvol;
@@ -72,13 +64,14 @@ int main(int argc, char *argv[]) {
 
     times(&usage);
     cputime1 = ((double)usage.tms_utime)/sysconf(_SC_CLK_TCK);
-    cout << "1: " << cputime1 << ", int oder so: " << usage.tms_utime << endl;
 
-//     start_clock();
     cg(phi, eta, laplace, 1000, 1e-10, 1);
-//     end_clock();                // http://pubs.opengroup.org/onlinepubs/009695399/functions/times.html
+    times(&usage);
     cputime2 = ((double)usage.tms_utime)/sysconf(_SC_CLK_TCK);
-    cout << "Zeit1: " << cputime1 << ", Zeit2: " << cputime2 << ", ticks / sec: " << sysconf(_SC_CLK_TCK) << endl;
+    double tdiff = cputime2 - cputime1;
+    cout << "Zeit:  " << tdiff << endl;
+    cout << "Flops: " << 91411/tdiff << endl;
+    cout << "Zeit pro Gitterpunkt: " << tdiff/10000 << endl;
 
     for (int i=0; i<nvol; ++i){
       if (nn[0][i] == 1){
@@ -89,20 +82,6 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-
-void start_clock()
-{
-  st_time = times(&st_cpu);
-}
-
-void end_clock()
-{
-  en_time = times(&en_cpu);
-
-  cout << "Real Time: " << (en_time - st_time)*1./sysconf(_SC_CLK_TCK) << ", System Time " << (en_cpu.tms_stime - st_cpu.tms_stime)*1./sysconf(_SC_CLK_TCK) << endl;
-  cout << "sys clock ticks per sec: " << sysconf(_SC_CLK_TCK) << endl;
-}
-
 
 void init_matrix()
 {
@@ -152,6 +131,7 @@ void laplace(vektor x, double m2, vektor c){
       c[i] -= x[nn[j][i]] + x[nn[ndim+j][i]];
     }
   }
+  // anzahl rechenschritte: N*N*(3 + ndim*3) = 90000
   return;
 }
 
@@ -229,6 +209,7 @@ void cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_
     vec_addition(r, dummyvec, p);               	// neues p_(k+1), checked; p = r + dummyvec
     ++counter;
   }
+//   Anzahl der Rechenschritte: 1+2+2*N+1+2 + 1+1 + N*N*(3 + ndim*3) + 2*N + 2*N+1 + N + N + N+N + 2*N + 1 + N + N + 1 = (3+3ndim)*N^2 + 14*N + 11 = 91411
 
   cout << "Anzahl von Schritten: " << counter << endl;
   return;
