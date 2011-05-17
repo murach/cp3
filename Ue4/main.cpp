@@ -1,8 +1,5 @@
 #include <string>
 #include <iostream>
-// #include <ctime>
-#include <sys/times.h>
-// #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
@@ -35,9 +32,6 @@ void dirichlet(vektor x, double m2, vektor c);
 int cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_it, double relerr = 1e-10, bool flag = 1);
 void geom_pbc();
 
-struct tms usage;
-double cputime1, cputime2;
-
 int **nn;
 int lsize[ndim+1] = {0,N,N};
 int nvol;
@@ -62,27 +56,16 @@ int main(int argc, char *argv[]) {
       eta[i] = ran->Uniform();
     }
 
-    times(&usage);
-    cputime1 = ((double)usage.tms_utime)/sysconf(_SC_CLK_TCK);
-
     int steps = cg(phi, eta, laplace, 1000, 1e-10, 1);
-
-    times(&usage);
-    cputime2 = ((double)usage.tms_utime)/sysconf(_SC_CLK_TCK);
-    double tdiff = cputime2 - cputime1;
-    int flops = 8+2*N + steps*((1+2*ndim)*N*N + 12*N + 2);
-    cout << "Flops: " << flops << endl;
-    cout << "Zeit:  " << tdiff << endl;
-    cout << "Zeit/Gitterpunkt: " << tdiff/nvol << endl;
-    cout << "Flops/Gitterpunkt: " << flops/nvol << endl;
-    cout << "Flops/sec: " << steps*((1+2*ndim)*N*N + 14*N + 11)/tdiff << endl;
+    cout << "Anzahl der Schritte, Laplace: " << steps << endl;
 
     for (int i=0; i<nvol; ++i){
       if (nn[0][i] == 1){
         eta[i] = 0;
       }
     }
-    cg(phi, eta, dirichlet, 1000, 1e-10, 1);
+    steps = cg(phi, eta, dirichlet, 1000, 1e-10, 1);
+    cout << "Anzahl der Schritte, Dirichlet: " << steps << endl;
 
     return 0;
 }
@@ -219,7 +202,6 @@ int cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_i
   }
 //   Anzahl der Rechenschritte: 1 + 2 + 2*N + 1 + 2 + 1 + 1 + counter*(N*N*(1 + ndim*2) + 2*N + 1+2*N+N+N+N+N + 2*N + 1 + N + N) = 8+2N + counter*((1+2ndim)*N*N + 12N + 2)
 
-  cout << "Anzahl von Schritten: " << counter << endl;
   return counter;
 }
 

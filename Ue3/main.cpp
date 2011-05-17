@@ -69,6 +69,9 @@ int main(int argc, char *argv[]) {
 
     times(&usage);
     cputime2 = ((double)usage.tms_utime)/sysconf(_SC_CLK_TCK);
+
+    cout << "Anzahl der Schritte, Laplace: " << steps << endl;
+
     double tdiff = cputime2 - cputime1;
     int flops = 8+2*N + steps*((1+2*ndim)*N*N + 12*N + 2);
     cout << "Flops: " << flops << endl;
@@ -82,7 +85,8 @@ int main(int argc, char *argv[]) {
         eta[i] = 0;
       }
     }
-    cg(phi, eta, dirichlet, 1000, 1e-10, 1);
+    steps = cg(phi, eta, dirichlet, 1000, 1e-10, 1);
+    cout << "Anzahl der Schritte, Dirichlet: " << steps << endl;
 
     return 0;
 }
@@ -219,7 +223,6 @@ int cg(vektor x, vektor b, void (*fkt)(vektor x, double m2, vektor c), int max_i
   }
 //   Anzahl der Rechenschritte: 1 + 2 + 2*N + 1 + 2 + 1 + 1 + counter*(N*N*(1 + ndim*2) + 2*N + 1+2*N+N+N+N+N + 2*N + 1 + N + N) = 8+2N + counter*((1+2ndim)*N*N + 12N + 2)
 
-  cout << "Anzahl von Schritten: " << counter << endl;
   return counter;
 }
 
