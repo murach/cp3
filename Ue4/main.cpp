@@ -56,8 +56,8 @@ int main(int argc, char *argv[]) {
       s[i] = ran->Uniform();
     }
 
-    int steps = cg(s, laplace, 1000, 1e-10);
-    cout << "Anzahl der Schritte, Laplace: " << steps << endl;
+    int steps = cg(s, laplace, N+2, 1e-10);
+    cout << "Anzahl der Schritte: " << steps << endl;
 
     return 0;
 }
