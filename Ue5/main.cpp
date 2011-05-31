@@ -20,11 +20,11 @@ inline double p(double phi_re, double phi_im, double B_re, double B_im, double p
 
 #define N 10
 #define ndim 2
+#define n_mc_runs 1000
 
 // int **nn;
 // int nvol;
 // int lsize[ndim+1] = {0,N,N};
-double delta = 0.5;
 
 int main(){
   TRandom3 *ran = new TRandom3(0);
@@ -35,9 +35,9 @@ int main(){
   phi_re = ran->Uniform();
   phi_im = ran->Uniform();
   kappa = ran->Uniform();
-  lambda = ran->Uniform();
+  lambda = 0;//ran->Uniform();
 
-  B_re = ran->Uniform();
+  B_re = ran->Uniform();        // fuer uns soll B erstmal konstant sein
   B_im = ran->Uniform();
 
   phi2 = phi_re*phi_re + phi_im*phi_im;
@@ -46,21 +46,34 @@ int main(){
 
   double phi_neu_re, phi_neu_im, p_phi_neu;
   double p_accept;
-  double p_grenz = 0.4;
-  double wtrial, wmetro;
+  double p_grenz = 0.5;
+  double delta = 0.5;
+  double phi_mean_re = 0., phi_mean_im = 0.;
 
-  for (int i=0; i<10; ++i){
-    r1 = ran->Uniform(-1*delta, delta);
-    r2 = ran->Uniform(-1*delta, delta);
+  for (int k=0; k<n_mc_runs; ++k){
+    for (int i=0; i<10; ++i){
+      r1 = ran->Uniform(-1*delta, delta);
+      r2 = ran->Uniform(-1*delta, delta);
 
-    phi_neu_re = phi_re + r1;
-    phi_neu_im = phi_im + r2;
+      p_phi = p(phi_re, phi_im, B_re, B_im, phi2, lambda);
 
-    p_phi_neu = p(phi_neu_re, phi_neu_im, B_re, B_im, phi2, lambda);
-    p_accept = (p_phi_neu >= p_phi) ? 1 : p_phi_neu/p_phi;
-    cout << i << "   " << p_accept << endl;
-    if(p_accept==1 || p_phi_neu/p_phi>0.5 ) p_phi = p_phi_neu;
+      phi_neu_re = phi_re + r1;
+      phi_neu_im = phi_im + r2;
+
+      p_phi_neu = p(phi_neu_re, phi_neu_im, B_re, B_im, phi2, lambda);
+
+      p_accept = (p_phi_neu >= p_phi) ? 1 : p_phi_neu/p_phi;
+
+      if(p_accept==1 || p_phi_neu/p_phi>p_grenz ) {phi_re = phi_neu_re; phi_im = phi_neu_im;}
+    }
+    phi_mean_re += phi_re;
+    phi_mean_im += phi_im;
   }
+  phi_mean_re /= n_mc_runs;
+  phi_mean_im /= n_mc_runs;
+
+  cout << phi_mean_re << "  " << B_re << endl;
+  cout << phi_mean_im << "  " << B_im << endl;
 }
 
 
