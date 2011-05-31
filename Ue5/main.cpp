@@ -18,20 +18,11 @@ typedef double **matrix;
 void geom_pbc();
 inline double p(double phi_re, double phi_im, double B_re, double B_im, double phi2, double lambda){ return exp(2*(B_re*phi_re+B_im*phi_im) - phi2 - lambda*(phi2-1)*(phi2-1)); }
 
-#define N 10
-#define ndim 2
-#define n_mc_runs 1000
-
-// int **nn;
-// int nvol;
-// int lsize[ndim+1] = {0,N,N};
+#define n_mc_runs 10000
 
 int main(){
   TRandom3 *ran = new TRandom3(0);
-  double phi_re, phi_im, B_re, B_im, p_phi, lambda, phi2, kappa, r1, r2;
-//   double h_re, h_im;
-//   h_re = ran->Uniform();
-//   h_im = ran->Uniform();
+  double phi_re, phi_im, B_re, B_im, p_phi, lambda, phi2, phi2_neu, kappa, r1, r2;
   phi_re = ran->Uniform();
   phi_im = ran->Uniform();
   kappa = ran->Uniform();
@@ -39,10 +30,6 @@ int main(){
 
   B_re = ran->Uniform();        // fuer uns soll B erstmal konstant sein
   B_im = ran->Uniform();
-
-  phi2 = phi_re*phi_re + phi_im*phi_im;
-
-  p_phi = p(phi_re, phi_im, B_re, B_im, phi2, lambda);
 
   double phi_neu_re, phi_neu_im, p_phi_neu;
   double p_accept;
@@ -55,12 +42,14 @@ int main(){
       r1 = ran->Uniform(-1*delta, delta);
       r2 = ran->Uniform(-1*delta, delta);
 
+      phi2 = phi_re*phi_re + phi_im*phi_im;
       p_phi = p(phi_re, phi_im, B_re, B_im, phi2, lambda);
 
       phi_neu_re = phi_re + r1;
       phi_neu_im = phi_im + r2;
 
-      p_phi_neu = p(phi_neu_re, phi_neu_im, B_re, B_im, phi2, lambda);
+      phi2_neu = phi_neu_re*phi_neu_re + phi_neu_im*phi_neu_im;
+      p_phi_neu = p(phi_neu_re, phi_neu_im, B_re, B_im, phi2_neu, lambda);
 
       p_accept = (p_phi_neu >= p_phi) ? 1 : p_phi_neu/p_phi;
 
