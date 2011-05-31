@@ -24,10 +24,11 @@ inline double p(double phi_re, double phi_im, double B_re, double B_im, double p
 // int **nn;
 // int nvol;
 // int lsize[ndim+1] = {0,N,N};
+double delta = 0.5;
 
 int main(){
   TRandom3 *ran = new TRandom3(0);
-  double phi_re, phi_im, B_re, B_im, p_phi, lambda, phi2, kappa;
+  double phi_re, phi_im, B_re, B_im, p_phi, lambda, phi2, kappa, r1, r2;
 //   double h_re, h_im;
 //   h_re = ran->Uniform();
 //   h_im = ran->Uniform();
@@ -43,21 +44,24 @@ int main(){
 
   p_phi = p(phi_re, phi_im, B_re, B_im, phi2, lambda);
 
-  double phi_neu, p_phi_neu;
+  double phi_neu_re, phi_neu_im, p_phi_neu;
   double p_accept;
   double p_grenz = 0.4;
+  double wtrial, wmetro;
 
   for (int i=0; i<10; ++i){
-    phi_neu = ran->Uniform();
-    p_phi_neu = p(phi_neu, phi_im, B_re, B_im, phi2, lambda);
+    r1 = ran->Uniform(-1*delta, delta);
+    r2 = ran->Uniform(-1*delta, delta);
+
+    phi_neu_re = phi_re + r1;
+    phi_neu_im = phi_im + r2;
+
+    p_phi_neu = p(phi_neu_re, phi_neu_im, B_re, B_im, phi2, lambda);
     p_accept = (p_phi_neu >= p_phi) ? 1 : p_phi_neu/p_phi;
-    cout << p_accept << endl;
-    p_phi = p_phi_neu;
+    cout << i << "   " << p_accept << endl;
+    if(p_accept==1 || p_phi_neu/p_phi>0.5 ) p_phi = p_phi_neu;
   }
 }
-
-
-// bei e.on  neulich im akw brokdorf (lief auf phoenix)
 
 
 // void geom_pbc(){
