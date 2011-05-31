@@ -1,9 +1,6 @@
-#include <string>
 #include <iostream>
 #include <stdlib.h>
-#include <assert.h>
 #include <math.h>
-#include <omp.h>
 
 #include <TRandom3.h>
 
