@@ -21,6 +21,24 @@ inline double p(double phi_re, double phi_im, double B_re, double B_im, double p
 static INT  nvar = 0, nbmax = 0, *nbl, *lbl, *lnew;
 static REAL **blksum, *sqsum;
 static const REAL zero = 0., one = 1.;
+/* prototypes for stat5 functions */
+void  clear5(INT nvar, INT nbmax);
+void  accum5(INT ivar, REAL value);
+REAL  aver5(INT ivar);
+REAL  var5(INT ivar);
+REAL  sigma5(INT ivar);
+REAL  cov5(INT ivar, INT jvar);
+REAL  covar5(INT ivar, INT jvar);
+REAL  tau5(INT ivar);
+REAL  rsq5(INT ivar);
+REAL  tauint5(INT ivar);
+void  jackout5(INT ivar1, INT *nb, REAL bj[]);
+void  jackeval5(INT nb, REAL fj[], REAL *aver, REAL *sigma);
+void  jack5(REAL (*fct)(INT nvar, REAL a[]), REAL *aver, REAL *sigma);
+void  save5(FILE *file);
+void  savef5(FILE *file);
+void  get5(FILE *file);
+void  getf5(FILE *file);
 
 #define n_mc_runs 1000
 
@@ -100,6 +118,12 @@ int main(){
     sigma_phi2   = sqrt(sigma_phi2/(n_mc_runs-1));
 
 // // // // // // // // // // // // //     fehlerberechnung ende
+// // // // // // // // // // // // //     fehler mit stat5 anfang
+
+    clear5(1, 500);
+    
+
+// // // // // // // // // // // // //     stat5 ende
 
     if (j == 0){
       cout << endl << "######### Checks for lambda = 0: #########" << endl;
@@ -131,8 +155,8 @@ int main(){
 /* allocate storage and clear counters */
 void clear5(INT nvar1, INT nbmax1){
 
-//   extern INT  nvar, nbmax, *nbl, *lbl, *lnew;
-//   extern REAL **blksum, *sqsum;
+  extern INT  nvar, nbmax, *nbl, *lbl, *lnew;                           // TODO: alles, was hier extern ist, müsste bei mir am anfang als globale var definiert werden
+  extern REAL **blksum, *sqsum;                                         // zb nvar = 1, wenn man nur eine variable betrachten will
 
   INT   ivar, ibl;
 
