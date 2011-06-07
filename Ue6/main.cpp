@@ -22,7 +22,7 @@ static INT  nvar = 0, nbmax = 0, *nbl, *lbl, *lnew;
 static REAL **blksum, *sqsum;
 static const REAL zero = 0., one = 1.;
 
-#define n_mc_runs 1e5
+#define n_mc_runs 1000
 
 int main(){
   TRandom3 *ran = new TRandom3(0);
@@ -43,11 +43,15 @@ int main(){
   double phi_mean_re=0., phi_mean_im=0., phi2_mean=0.;
   double dummy_re=0., dummy_im=0.;
   int counter;
+  int n_hits = 10;
+  double phi_re_vek[n_mc_runs];
+  double phi_im_vek[n_mc_runs];
+  double phi2_vek[n_mc_runs];
 
   for (int j=0; j<2; ++j){
     counter = 0;
     for (int k=0; k<n_mc_runs; ++k){
-      for (int i=0; i<10; ++i){
+      for (int i=0; i<n_hits; ++i){
         r1 = ran->Uniform(-1*delta, delta);
         r2 = ran->Uniform(-1*delta, delta);
 
@@ -64,6 +68,10 @@ int main(){
 
         if(p_accept==1 || p_phi_neu/p_phi>p_grenz ) {phi_re = phi_neu_re; phi_im = phi_neu_im; phi2 = phi2_neu; counter++;}
       }
+      phi_re_vek[k] = phi_re;
+      phi_im_vek[k] = phi_im;
+      phi2_vek[k]   = phi2;
+
       phi_mean_re += phi_re;
       phi_mean_im += phi_im;
       phi2_mean += phi2;
@@ -78,17 +86,32 @@ int main(){
 
     cout << endl << "Akzeptanz: " << counter*1./(10*n_mc_runs) << endl;
 
+// // // // // // // // // // // // //     fehlerberechnung anfang
+
+    double sigma_phi_re=0., sigma_phi_im=0., sigma_phi2=0.;
+    for (int k=0; k<n_mc_runs; ++k){
+      sigma_phi_re += (phi_re_vek[k]-phi_mean_re)*(phi_re_vek[k]-phi_mean_re);
+//       cout << k << " " << phi_re_vek[k] << " " << phi_mean_re << " " << sigma_phi_re << endl;
+      sigma_phi_im += (phi_im_vek[k]-phi_mean_im)*(phi_im_vek[k]-phi_mean_im);
+      sigma_phi2   += (phi2_vek[k]-phi2_mean)    *(phi2_vek[k]-phi2_mean);
+    }
+    sigma_phi_re = sqrt(sigma_phi_re/(n_mc_runs-1));
+    sigma_phi_im = sqrt(sigma_phi_im/(n_mc_runs-1));
+    sigma_phi2   = sqrt(sigma_phi2/(n_mc_runs-1));
+
+// // // // // // // // // // // // //     fehlerberechnung ende
+
     if (j == 0){
       cout << endl << "######### Checks for lambda = 0: #########" << endl;
-      cout << "phi_re: " << phi_mean_re << "  , B_re: " << B_re << ", rel. Abw.: " << fabs(B_re-phi_mean_re)/B_re << endl;
-      cout << "phi_im: " << phi_mean_im << "  , B_im: " << B_im << ", rel. Abw.: " << fabs(B_im-phi_mean_im)/B_im << endl;
-      cout << "phi2  : " << phi2_mean << "   , 1+|B|2: " << 1 + B2 << ", rel. Abw.: " << fabs(1+B2-phi2_mean)/(1+B2) << endl << endl;
+      cout << "phi_re: " << phi_mean_re << "  , B_re: " << B_re << ", rel. Abw.: " << fabs(B_re-phi_mean_re)/B_re << ", std-abw: " << sigma_phi_re << endl;
+      cout << "phi_im: " << phi_mean_im << "  , B_im: " << B_im << ", rel. Abw.: " << fabs(B_im-phi_mean_im)/B_im << ", std-abw: " << sigma_phi_im << endl;
+      cout << "phi2  : " << phi2_mean << "   , 1+|B|2: " << 1 + B2 << ", rel. Abw.: " << fabs(1+B2-phi2_mean)/(1+B2) << ", std-abw: " << sigma_phi2 << endl << endl;
     } else {
       cout << endl << "######### Checks for lambda > 0: #########" << endl;
       dummy_re = B_re - 2*lambda[j]*dummy_re;
       dummy_im = B_im - 2*lambda[j]*dummy_im;
-      cout << "phi_re: " << phi_mean_re << ", Re(B-2*lambda*(...)): " << dummy_re << ", rel. Abw.: " << fabs(dummy_re-phi_mean_re)/dummy_re << endl;
-      cout << "phi_im: " << phi_mean_im << ", Im(B-2*lambda*(...)): " << dummy_im << ", rel. Abw.: " << fabs(dummy_im-phi_mean_im)/dummy_im << endl << endl;
+      cout << "phi_re: " << phi_mean_re << ", Re(B-2*lambda*(...)): " << dummy_re << ", rel. Abw.: " << fabs(dummy_re-phi_mean_re)/dummy_re << ", std-abw: " << sigma_phi_re << endl;
+      cout << "phi_im: " << phi_mean_im << ", Im(B-2*lambda*(...)): " << dummy_im << ", rel. Abw.: " << fabs(dummy_im-phi_mean_im)/dummy_im << ", std-abw: " << sigma_phi_im << endl << endl;
     }
   }
 }
