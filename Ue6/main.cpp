@@ -80,13 +80,15 @@ int main(){
 
     if (j == 0){
       cout << endl << "######### Checks for lambda = 0: #########" << endl;
-      cout << "phi_re: " << phi_mean_re << "  , B_re: " << B_re << endl;
-      cout << "phi_im: " << phi_mean_im << "  , B_im: " << B_im << endl;
-      cout << "phi2  : " << phi2_mean << "   , 1+|B|2: " << 1 + B2 << endl << endl;
+      cout << "phi_re: " << phi_mean_re << "  , B_re: " << B_re << ", rel. Abw.: " << fabs(B_re-phi_mean_re)/B_re << endl;
+      cout << "phi_im: " << phi_mean_im << "  , B_im: " << B_im << ", rel. Abw.: " << fabs(B_im-phi_mean_im)/B_im << endl;
+      cout << "phi2  : " << phi2_mean << "   , 1+|B|2: " << 1 + B2 << ", rel. Abw.: " << fabs(1+B2-phi2_mean)/(1+B2) << endl << endl;
     } else {
       cout << endl << "######### Checks for lambda > 0: #########" << endl;
-      cout << "phi_re: " << phi_mean_re << ", Re(B-2*lambda*(...)): " << B_re - 2*lambda[j]*dummy_re << endl;
-      cout << "phi_im: " << phi_mean_im << ", Im(B-2*lambda*(...)): " << B_im - 2*lambda[j]*dummy_im << endl << endl;
+      dummy_re = B_re - 2*lambda[j]*dummy_re;
+      dummy_im = B_im - 2*lambda[j]*dummy_im;
+      cout << "phi_re: " << phi_mean_re << ", Re(B-2*lambda*(...)): " << dummy_re << ", rel. Abw.: " << fabs(dummy_re-phi_mean_re)/dummy_re << endl;
+      cout << "phi_im: " << phi_mean_im << ", Im(B-2*lambda*(...)): " << dummy_im << ", rel. Abw.: " << fabs(dummy_im-phi_mean_im)/dummy_im << endl << endl;
     }
   }
 }
