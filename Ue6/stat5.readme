@@ -1,0 +1,96 @@
+
+      stat5 - statistics package for MC data analysis       B Bunk 1993
+      -----------------------------------------------       rev  2/2006
+
+      Features:
+
+      o storage management
+      o accumulation and bookkeeping
+        of an arbitrary number of variables
+      o automatic blocking (binning) within a specified
+        allocation of blocks
+      o computation of averages
+      o error analysis, including covariances and autocorrelations
+      o jackknife analysis
+      o save/restore to/from file (formatted and binary)
+      o implementations in F90 and C with identical functionality
+
+      Files:
+
+      stat5.c
+      stat5.h
+      stat5.f90
+      stat5.readme (this file)
+
+      Usage:
+      ---------------------------------------------------------------------
+            C                             F90                 
+      ---------------------------------------------------------------------
+      clear5(nvar, nbmax)           call clear5(nvar, nbmax)      procedure
+      accum5(ivar, value)           call accum5(ivar, value)      prodedure
+      aver5(ivar)                   aver5(ivar)                   function
+      sigma5(ivar)                  sigma5(ivar)                  function
+      var5(ivar)                    var5(ivar)                    function
+      covar5(ivar, jvar)            covar5(ivar, jvar)            function
+      tau5(ivar)                    tau5(ivar)                    function
+      tauint5(ivar)                 tauint5(ivar)                 function
+      jackout5(ivar, &nb, bj)       call jackout5(ivar, nb, bj)   procedure
+      jackeval5(nb, fj,             call jackeval5(nb, fj,        procedure
+            &aver, &sigma)                      aver, sigma)
+      jack5(fct, &aver, &sigma)     call jack5(fct, avar, sigma)  procedure
+      save5(file)                   call save5(iunit)             procedure
+      savef5(file)                  call savef5(iunit)            procedure
+      get5(file)                    call get5(iunit)              procedure
+      getf5(file)                   call getf5(iunit)             procedure
+      ---------------------------------------------------------------------
+
+      Variable types:   in C:   int     resp. double
+                        in F90: integer resp. real(8) 
+
+      nvar = 1,2,3,..   : no. of variables (i.e. statistics counters)
+      nbmax = 2,4,6,..  : max. no of blocks - the actual number of filled
+                              blocks will vary between nbmax/2 and nbmax.
+                              If unsure, use 500 .
+      ivar = 1..nvar    : index of variable to be accumulated/evaluated
+      value             : input value for accumulation
+
+      clear5 defines nvar, nbmax, then (re)allocates and initialises the
+            internal variables. May also be used for reset.
+
+      accum5 is used to input a value. The bookkeeping is done per variable,
+            there is no need to use all counters in sync. However, the user
+            is responsible for "reasonable" combinations of variables in
+            covariance and jackknife evaluations.
+
+      aver5, sigma5, var5, covar5 return current results, without changing
+            the contents of the internal storage. 
+
+      tau5 and tauint5 return autocorrelation times as defined by
+
+            var(average) = var(single)/(#meas) * coth( 1/(2*tau) )
+                         = var(single)/(#meas) * 2 * tauint
+
+      jackout5 returns the number of blocks and an array of jackknife
+            values (complements computed on the block level)
+      jackeval5 computes average and error for an array of jackknife
+            (function) values
+      jack5 is a custom call for a jackknife evaluation involving a user-defined
+            function of (maybe) all accumulated variables
+            fct(n,a) :
+                  n = nvar
+                  a : array of length n, referring to the set of variables.
+                        in C  : a[i], i=1..nvar
+                        in F90: a(i), i=1..nvar
+            All (used) variables should have the been accumulated in sync,
+            with ivar=1 as a prototype (for the layout of blocks).
+            Fortran note: don't forget the external statement in the calling
+                  program!
+
+      save5/get5  : save/restore binary data to/from file
+      savef5/getf5: save/restore formatted data to/from file
+            The file should have been opened as appropriate (read/write)
+            and is specified by a file pointer (C) resp. unit number (F90).
+            Formatted data files are portable between C and F90.
+
+      Note that variables are numbered ivar = 1..nvar in both C and F90
+      calls.
