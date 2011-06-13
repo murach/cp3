@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <stdlib.h>
 #include <math.h>
 
@@ -8,6 +9,7 @@ using std::string;
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::setw;
 
 typedef double *vektor;
 typedef double **matrix;
@@ -66,6 +68,9 @@ int main(){
   double phi_im_vek[n_mc_runs];
   double phi2_vek[n_mc_runs];
 
+  
+  clear5(3, 500);
+
   for (int j=0; j<2; ++j){
     counter = 0;
     for (int k=0; k<n_mc_runs; ++k){
@@ -86,6 +91,9 @@ int main(){
 
         if(p_accept==1 || p_phi_neu/p_phi>p_grenz ) {phi_re = phi_neu_re; phi_im = phi_neu_im; phi2 = phi2_neu; counter++;}
       }
+      accum5(1, phi_re);
+      accum5(2, phi_im);
+      accum5(3, phi2);
       phi_re_vek[k] = phi_re;
       phi_im_vek[k] = phi_im;
       phi2_vek[k]   = phi2;
@@ -118,24 +126,26 @@ int main(){
     sigma_phi2   = sqrt(sigma_phi2/(n_mc_runs-1));
 
 // // // // // // // // // // // // //     fehlerberechnung ende
-// // // // // // // // // // // // //     fehler mit stat5 anfang
 
-    clear5(1, 500);
-    
-
-// // // // // // // // // // // // //     stat5 ende
+    double sigma = sigma5(1);
+    cout << "stat5-sigma: " << sigma << endl;
 
     if (j == 0){
       cout << endl << "######### Checks for lambda = 0: #########" << endl;
-      cout << "phi_re: " << phi_mean_re << "  , B_re: " << B_re << ", rel. Abw.: " << fabs(B_re-phi_mean_re)/B_re << ", std-abw: " << sigma_phi_re << endl;
-      cout << "phi_im: " << phi_mean_im << "  , B_im: " << B_im << ", rel. Abw.: " << fabs(B_im-phi_mean_im)/B_im << ", std-abw: " << sigma_phi_im << endl;
-      cout << "phi2  : " << phi2_mean << "   , 1+|B|2: " << 1 + B2 << ", rel. Abw.: " << fabs(1+B2-phi2_mean)/(1+B2) << ", std-abw: " << sigma_phi2 << endl << endl;
+      cout << "phi_re: " << std::setprecision(4) << std::fixed << phi_mean_re << ", B_re  : " << B_re << 
+              ", rel. Abw.: " << fabs(B_re-phi_mean_re)/B_re << ", std-abw: " << sigma_phi_re << ", stat5-sigma: " << sigma5(1) << endl;
+      cout << "phi_im: " << phi_mean_im << ", B_im  : " << B_im << ", rel. Abw.: " << fabs(B_im-phi_mean_im)/B_im << 
+              ", std-abw: " << sigma_phi_im << ", stat5-sigma: " << sigma5(2) << endl;
+      cout << "phi2  : " << phi2_mean << ", 1+|B|2: " << 1 + B2 << ", rel. Abw.: " << fabs(1+B2-phi2_mean)/(1+B2) <<
+              ", std-abw: " << sigma_phi2 << ", stat5-sigma: " << sigma5(3) << endl << endl;
     } else {
       cout << endl << "######### Checks for lambda > 0: #########" << endl;
       dummy_re = B_re - 2*lambda[j]*dummy_re;
       dummy_im = B_im - 2*lambda[j]*dummy_im;
-      cout << "phi_re: " << phi_mean_re << ", Re(B-2*lambda*(...)): " << dummy_re << ", rel. Abw.: " << fabs(dummy_re-phi_mean_re)/dummy_re << ", std-abw: " << sigma_phi_re << endl;
-      cout << "phi_im: " << phi_mean_im << ", Im(B-2*lambda*(...)): " << dummy_im << ", rel. Abw.: " << fabs(dummy_im-phi_mean_im)/dummy_im << ", std-abw: " << sigma_phi_im << endl << endl;
+      cout << "phi_re: " << phi_mean_re << ", Re(B-2*lambda*(...)): " << dummy_re <<
+              ", rel. Abw.: " << fabs(dummy_re-phi_mean_re)/dummy_re << ", std-abw: " << sigma_phi_re << ", stat5-sigma: " << sigma5(1) << endl;
+      cout << "phi_im: " << phi_mean_im << ", Im(B-2*lambda*(...)): " << dummy_im <<
+              ", rel. Abw.: " << fabs(dummy_im-phi_mean_im)/dummy_im << ", std-abw: " << sigma_phi_im << ", stat5-sigma: " << sigma5(2) << endl << endl;
     }
   }
 }
@@ -155,8 +165,8 @@ int main(){
 /* allocate storage and clear counters */
 void clear5(INT nvar1, INT nbmax1){
 
-  extern INT  nvar, nbmax, *nbl, *lbl, *lnew;                           // TODO: alles, was hier extern ist, müsste bei mir am anfang als globale var definiert werden
-  extern REAL **blksum, *sqsum;                                         // zb nvar = 1, wenn man nur eine variable betrachten will
+  extern INT  nvar, nbmax, *nbl, *lbl, *lnew;
+  extern REAL **blksum, *sqsum;
 
   INT   ivar, ibl;
 
