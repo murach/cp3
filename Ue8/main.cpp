@@ -1,5 +1,3 @@
-// fehler nur mit stat5 -> hilfsgroessen koennen entfallen
-
 #include <iostream>
 #include <iomanip>
 #include <stdlib.h>
@@ -44,9 +42,9 @@ void  savef5(FILE *file);
 void  get5(FILE *file);
 void  getf5(FILE *file);
 
-#define n_mc_runs 1000000
-#define N 6
-#define ndim 2
+#define n_mc_runs 10000
+#define N 3
+#define ndim 3
 
 int **nn;
 int lsize[4] = {0,N,N,N};
@@ -57,9 +55,9 @@ int main(){
   TRandom3 *ran = new TRandom3(0);
 
   double phi_re[nvol], phi_im[nvol], B_re[nvol], B_im[nvol], p_phi, phi2[nvol], phi2_neu, r1, r2, B2[nvol];
-  double lambda = 4;
-  double kappa = 0.5;
-  double h = 0.3;
+  double lambda = 3;
+  double kappa = 0.4;
+  double h = 0.2;
 
   for (int i=0; i<nvol; ++i){
     phi_re[i] = ran->Uniform();
@@ -72,13 +70,21 @@ int main(){
   int akzeptanz;
   double dummy;
   double delta = 1.;
-  double phi_mean_re=0., phi_mean_im=0., phi2_mean=0.;
   double dummy_re=0., dummy_im=0., dummy_sum_re, dummy_sum_im;
+  double phi_nachbar_phi_re=0., phi_nachbar_phi_im=0.;
   int n_hits = 10;
-  int n_therm = 10000;
+  int n_therm = 1000;
 
 
-  clear5(2, 500);
+//   accumulated data:
+//     1 : Re Phi
+//     2 : Im Phi
+//     3 : Re (|Phi|^2*Phi)
+//     4 : Re (Phi_(x+mu)*Phi_stern)
+//     5 : Im (Phi_(x+mu)*Phi_stern)
+//     6 : |Phi|^2
+//     7 : |Phi|^4
+  clear5(7, 500);
 
   for (int k=0; k<n_mc_runs; ++k){
     akzeptanz = 0;
@@ -112,8 +118,20 @@ int main(){
       }
 
       if (k>=n_therm){
+        phi_nachbar_phi_re=0.;
+        phi_nachbar_phi_im=0.;
+        for (int i=1; i<=ndim; ++i){
+          phi_nachbar_phi_re += phi_re[nn[i][l]]*phi_re[l] + phi_im[nn[i][l]]*phi_im[l];
+          phi_nachbar_phi_im += phi_im[nn[i][l]]*phi_re[l] - phi_re[nn[i][l]]*phi_im[l];
+        }
+
         accum5(1, phi_re[l]);
         accum5(2, phi_im[l]);
+        accum5(3, phi2[l]*phi_re[l]);
+        accum5(4, phi_nachbar_phi_re);
+        accum5(5, phi_nachbar_phi_im);
+        accum5(6, phi2[l]);
+        accum5(7, phi2[l]*phi2[l]);
       }
     }
     if (k<n_therm){
@@ -123,8 +141,10 @@ int main(){
     }
 
   }
-  cout << "Re M: " << aver5(1) << " +- " << sigma5(1) << endl;
-  cout << "Im M: " << aver5(2) << " +- " << sigma5(2) << endl;
+
+  cout << "Gl. 1: " << (1-2*ndim*kappa-2*lambda)*aver5(1) + 2*lambda*aver5(3) << " = " << h << endl;
+  cout << "Gl. 2: " << -2*kappa*aver5(4) + (1-2*lambda)*aver5(6) + 2*lambda*aver5(7) << " = " << 1+h*aver5(1) << endl;
+  cout << "Gl. 3: " << aver5(5) << " +- " << sigma5(5) << " = " << "0" << endl;
 
 }
 

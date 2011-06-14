@@ -55,7 +55,7 @@ int main(){
 
         p_accept = (p_phi_neu >= p_phi) ? 1 : p_phi_neu/p_phi;
 
-        if(p_accept==1 || p_phi_neu/p_phi>p_grenz ) {phi_re = phi_neu_re; phi_im = phi_neu_im; phi2 = phi2_neu; counter++;}
+        if(p_accept==1 || p_phi_neu/p_phi>ran->Uniform() ) {phi_re = phi_neu_re; phi_im = phi_neu_im; phi2 = phi2_neu; counter++;}
       }
       phi_mean_re += phi_re;
       phi_mean_im += phi_im;
