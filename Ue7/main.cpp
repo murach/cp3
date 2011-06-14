@@ -44,7 +44,7 @@ void  savef5(FILE *file);
 void  get5(FILE *file);
 void  getf5(FILE *file);
 
-#define n_mc_runs 1000
+#define n_mc_runs 20
 #define N 10
 #define ndim 2
 
@@ -69,17 +69,18 @@ int main(){
   double phi_neu_re, phi_neu_im, p_phi_neu;
   double p_accept;
   double p_grenz = 0.5;
-  double delta = 2.;							// TODO: dynamisch waehlen
+  int akzeptanz;
+  double dummy;
+  double delta = 1.;
   double phi_mean_re=0., phi_mean_im=0., phi2_mean=0.;
   double dummy_re=0., dummy_im=0., dummy_sum_re, dummy_sum_im;
-  int counter;
   int n_hits = 10;
 
 
   clear5(3, 500);
 
-  counter = 0;
   for (int k=0; k<n_mc_runs; ++k){
+    akzeptanz = 0;
     for (int l=0; l<nvol; ++l){
 
       dummy_sum_re = 0.;
@@ -106,16 +107,19 @@ int main(){
 
         p_accept = (p_phi_neu >= p_phi) ? 1 : p_phi_neu/p_phi;
 
-        if(p_accept==1 || p_phi_neu/p_phi>p_grenz ) {phi_re[l] = phi_neu_re; phi_im[l] = phi_neu_im; phi2[l] = phi2_neu; counter++;}
+        if(p_accept==1 || p_phi_neu/p_phi>p_grenz ) {phi_re[l] = phi_neu_re; phi_im[l] = phi_neu_im; phi2[l] = phi2_neu; akzeptanz++;}
       }
 
       accum5(1, phi_re[l]);
       accum5(2, phi_im[l]);
       accum5(3, phi2[l]);
     }
+    dummy = (double)akzeptanz/(nvol*n_hits);
+    cout << "akzeptanz: " << dummy << endl;
+    if (dummy < 0.35) delta *= 0.95;
+    else if (dummy > 0.45) delta *= 1.05;
+    
   }
-
-  cout << endl << "Akzeptanz: " << counter*1./(n_hits*n_mc_runs*nvol) << endl;
 
 }
 
