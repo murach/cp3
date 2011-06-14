@@ -44,9 +44,9 @@ void  savef5(FILE *file);
 void  get5(FILE *file);
 void  getf5(FILE *file);
 
-#define n_mc_runs 20
-#define N 10
-#define ndim 2
+#define n_mc_runs 5000
+#define N 3
+#define ndim 3
 
 int **nn;
 int lsize[4] = {0,N,N,N};
@@ -57,9 +57,9 @@ int main(){
   TRandom3 *ran = new TRandom3(0);
 
   double phi_re[nvol], phi_im[nvol], B_re[nvol], B_im[nvol], p_phi, phi2[nvol], phi2_neu, r1, r2, B2[nvol];
-  double lambda = ran->Uniform();
-  double kappa = ran->Uniform();
-  double h = ran->Uniform();
+  double lambda = 3;
+  double kappa = 0.4;
+  double h = 0.2;
 
   for (int i=0; i<nvol; ++i){
     phi_re[i] = ran->Uniform();
@@ -75,9 +75,10 @@ int main(){
   double phi_mean_re=0., phi_mean_im=0., phi2_mean=0.;
   double dummy_re=0., dummy_im=0., dummy_sum_re, dummy_sum_im;
   int n_hits = 10;
+  int n_therm = 1000;
 
 
-  clear5(3, 500);
+  clear5(2, 500);
 
   for (int k=0; k<n_mc_runs; ++k){
     akzeptanz = 0;
@@ -90,7 +91,7 @@ int main(){
         dummy_sum_im += phi_im[nn[m][l]];
       }
       B_re[l] = h + kappa*dummy_sum_re;
-      B_im[l] = h + kappa*dummy_sum_im;
+      B_im[l] = kappa*dummy_sum_im;
 
       for (int i=0; i<n_hits; ++i){
         r1 = ran->Uniform(-1*delta, delta);
@@ -107,19 +108,23 @@ int main(){
 
         p_accept = (p_phi_neu >= p_phi) ? 1 : p_phi_neu/p_phi;
 
-        if(p_accept==1 || p_phi_neu/p_phi>p_grenz ) {phi_re[l] = phi_neu_re; phi_im[l] = phi_neu_im; phi2[l] = phi2_neu; akzeptanz++;}
+        if(p_accept==1 || p_phi_neu/p_phi>ran->Uniform() ) {phi_re[l] = phi_neu_re; phi_im[l] = phi_neu_im; phi2[l] = phi2_neu; akzeptanz++;}
       }
 
-      accum5(1, phi_re[l]);
-      accum5(2, phi_im[l]);
-      accum5(3, phi2[l]);
+      if (k>=n_therm){
+        accum5(1, phi_re[l]);
+        accum5(2, phi_im[l]);
+      }
     }
-    dummy = (double)akzeptanz/(nvol*n_hits);
-    cout << "akzeptanz: " << dummy << endl;
-    if (dummy < 0.35) delta *= 0.95;
-    else if (dummy > 0.45) delta *= 1.05;
-    
+    if (k<n_therm){
+      dummy = (double)akzeptanz/(nvol*n_hits);
+      if (dummy < 0.35) delta *= 0.95;
+      else if (dummy > 0.45) delta *= 1.05;
+    }
+
   }
+  cout << "Re M: " << aver5(1) << " +- " << sigma5(1) << endl;
+  cout << "Im M: " << aver5(2) << " +- " << sigma5(2) << endl;
 
 }
 
