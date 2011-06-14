@@ -127,9 +127,6 @@ int main(){
 
 // // // // // // // // // // // // //     fehlerberechnung ende
 
-    double sigma = sigma5(1);
-    cout << "stat5-sigma: " << sigma << endl;
-
     if (j == 0){
       cout << endl << "######### Checks for lambda = 0: #########" << endl;
       cout << "phi_re: " << std::setprecision(4) << std::fixed << phi_mean_re << ", B_re  : " << B_re << 

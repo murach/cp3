@@ -1,3 +1,5 @@
+// fehler nur mit stat5 -> hilfsgroessen koennen entfallen
+
 #include <iostream>
 #include <iomanip>
 #include <stdlib.h>
@@ -43,7 +45,7 @@ void  get5(FILE *file);
 void  getf5(FILE *file);
 
 #define n_mc_runs 1000
-#define N 100
+#define N 10
 #define ndim 2
 
 int **nn;
@@ -53,109 +55,68 @@ int nvol;
 int main(){
   geom_pbc();
   TRandom3 *ran = new TRandom3(0);
-  
-  double phi_re, phi_im, B_re, B_im, p_phi, phi2, phi2_neu, kappa, r1, r2;
-  phi_re = ran->Uniform();
-  phi_im = ran->Uniform();
-  kappa = ran->Uniform();
-  double lambda[2]={0, ran->Uniform()};
 
-  B_re = ran->Uniform();        // fuer uns soll B erstmal konstant sein
-  B_im = ran->Uniform();
-  double B2 = B_re*B_re + B_im*B_im;
+  double phi_re[nvol], phi_im[nvol], B_re[nvol], B_im[nvol], p_phi, phi2[nvol], phi2_neu, r1, r2, B2[nvol];
+  double lambda = ran->Uniform();
+  double kappa = ran->Uniform();
+  double h = ran->Uniform();
+
+  for (int i=0; i<nvol; ++i){
+    phi_re[i] = ran->Uniform();
+    phi_im[i] = ran->Uniform();
+  }
 
   double phi_neu_re, phi_neu_im, p_phi_neu;
   double p_accept;
   double p_grenz = 0.5;
-  double delta = 2.;
+  double delta = 2.;							// TODO: dynamisch waehlen
   double phi_mean_re=0., phi_mean_im=0., phi2_mean=0.;
-  double dummy_re=0., dummy_im=0.;
+  double dummy_re=0., dummy_im=0., dummy_sum_re, dummy_sum_im;
   int counter;
   int n_hits = 10;
-  double phi_re_vek[n_mc_runs];
-  double phi_im_vek[n_mc_runs];
-  double phi2_vek[n_mc_runs];
 
-  
+
   clear5(3, 500);
 
-  for (int j=0; j<2; ++j){
-    counter = 0;
-    for (int k=0; k<n_mc_runs; ++k){
+  counter = 0;
+  for (int k=0; k<n_mc_runs; ++k){
+    for (int l=0; l<nvol; ++l){
+
+      dummy_sum_re = 0.;
+      dummy_sum_im = 0.;
+      for (int m=1; m<=ndim*2; ++m){
+        dummy_sum_re += phi_re[nn[m][l]];
+        dummy_sum_im += phi_im[nn[m][l]];
+      }
+      B_re[l] = h + kappa*dummy_sum_re;
+      B_im[l] = h + kappa*dummy_sum_im;
+
       for (int i=0; i<n_hits; ++i){
         r1 = ran->Uniform(-1*delta, delta);
         r2 = ran->Uniform(-1*delta, delta);
 
-        phi2 = phi_re*phi_re + phi_im*phi_im;
-        p_phi = p(phi_re, phi_im, B_re, B_im, phi2, lambda[j]);
+        phi2[l] = phi_re[l]*phi_re[l] + phi_im[l]*phi_im[l];
+        p_phi = p(phi_re[l], phi_im[l], B_re[l], B_im[l], phi2[l], lambda);
 
-        phi_neu_re = phi_re + r1;
-        phi_neu_im = phi_im + r2;
+        phi_neu_re = phi_re[l] + r1;
+        phi_neu_im = phi_im[l] + r2;
 
         phi2_neu = phi_neu_re*phi_neu_re + phi_neu_im*phi_neu_im;
-        p_phi_neu = p(phi_neu_re, phi_neu_im, B_re, B_im, phi2_neu, lambda[j]);
+        p_phi_neu = p(phi_neu_re, phi_neu_im, B_re[l], B_im[l], phi2_neu, lambda);
 
         p_accept = (p_phi_neu >= p_phi) ? 1 : p_phi_neu/p_phi;
 
-        if(p_accept==1 || p_phi_neu/p_phi>p_grenz ) {phi_re = phi_neu_re; phi_im = phi_neu_im; phi2 = phi2_neu; counter++;}
+        if(p_accept==1 || p_phi_neu/p_phi>p_grenz ) {phi_re[l] = phi_neu_re; phi_im[l] = phi_neu_im; phi2[l] = phi2_neu; counter++;}
       }
-      accum5(1, phi_re);
-      accum5(2, phi_im);
-      accum5(3, phi2);
-      phi_re_vek[k] = phi_re;
-      phi_im_vek[k] = phi_im;
-      phi2_vek[k]   = phi2;
 
-      phi_mean_re += phi_re;
-      phi_mean_im += phi_im;
-      phi2_mean += phi2;
-      dummy_re += phi_re*(phi2-1);
-      dummy_im += phi_im*(phi2-1);
-    }
-    phi_mean_re /= n_mc_runs;
-    phi_mean_im /= n_mc_runs;
-    phi2_mean /= n_mc_runs;
-    dummy_re /= n_mc_runs;
-    dummy_im /= n_mc_runs;
-
-    cout << endl << "Akzeptanz: " << counter*1./(10*n_mc_runs) << endl;
-
-// // // // // // // // // // // // //     fehlerberechnung anfang
-
-    double sigma_phi_re=0., sigma_phi_im=0., sigma_phi2=0.;
-    for (int k=0; k<n_mc_runs; ++k){
-      sigma_phi_re += (phi_re_vek[k]-phi_mean_re)*(phi_re_vek[k]-phi_mean_re);
-//       cout << k << " " << phi_re_vek[k] << " " << phi_mean_re << " " << sigma_phi_re << endl;
-      sigma_phi_im += (phi_im_vek[k]-phi_mean_im)*(phi_im_vek[k]-phi_mean_im);
-      sigma_phi2   += (phi2_vek[k]-phi2_mean)    *(phi2_vek[k]-phi2_mean);
-    }
-    sigma_phi_re = sqrt(sigma_phi_re/(n_mc_runs-1));
-    sigma_phi_im = sqrt(sigma_phi_im/(n_mc_runs-1));
-    sigma_phi2   = sqrt(sigma_phi2/(n_mc_runs-1));
-
-// // // // // // // // // // // // //     fehlerberechnung ende
-
-    double sigma = sigma5(1);
-    cout << "stat5-sigma: " << sigma << endl;
-
-    if (j == 0){
-      cout << endl << "######### Checks for lambda = 0: #########" << endl;
-      cout << "phi_re: " << std::setprecision(4) << std::fixed << phi_mean_re << ", B_re  : " << B_re << 
-              ", rel. Abw.: " << fabs(B_re-phi_mean_re)/B_re << ", std-abw: " << sigma_phi_re << ", stat5-sigma: " << sigma5(1) << endl;
-      cout << "phi_im: " << phi_mean_im << ", B_im  : " << B_im << ", rel. Abw.: " << fabs(B_im-phi_mean_im)/B_im << 
-              ", std-abw: " << sigma_phi_im << ", stat5-sigma: " << sigma5(2) << endl;
-      cout << "phi2  : " << phi2_mean << ", 1+|B|2: " << 1 + B2 << ", rel. Abw.: " << fabs(1+B2-phi2_mean)/(1+B2) <<
-              ", std-abw: " << sigma_phi2 << ", stat5-sigma: " << sigma5(3) << endl << endl;
-    } else {
-      cout << endl << "######### Checks for lambda > 0: #########" << endl;
-      dummy_re = B_re - 2*lambda[j]*dummy_re;
-      dummy_im = B_im - 2*lambda[j]*dummy_im;
-      cout << "phi_re: " << phi_mean_re << ", Re(B-2*lambda*(...)): " << dummy_re <<
-              ", rel. Abw.: " << fabs(dummy_re-phi_mean_re)/dummy_re << ", std-abw: " << sigma_phi_re << ", stat5-sigma: " << sigma5(1) << endl;
-      cout << "phi_im: " << phi_mean_im << ", Im(B-2*lambda*(...)): " << dummy_im <<
-              ", rel. Abw.: " << fabs(dummy_im-phi_mean_im)/dummy_im << ", std-abw: " << sigma_phi_im << ", stat5-sigma: " << sigma5(2) << endl << endl;
+      accum5(1, phi_re[l]);
+      accum5(2, phi_im[l]);
+      accum5(3, phi2[l]);
     }
   }
+
+  cout << endl << "Akzeptanz: " << counter*1./(n_hits*n_mc_runs*nvol) << endl;
+
 }
 
 
@@ -334,7 +295,7 @@ REAL var5(INT ivar1){
   return (var/nmeas)/lbl[ivar];
 }
 
-/* compute errors */ 
+/* compute errors */
 
 REAL sigma5(INT ivar1){
 
@@ -366,11 +327,11 @@ REAL cov5(INT ivar1, INT jvar1){
   if(ivar1 < 1 || ivar1 > nvar){
     printf("error in cov5: ivar out of range\n");
     exit(550);
-  }      
+  }
   if(jvar1 < 1 || jvar1 > nvar){
     printf("error in cov5: jvar out of range\n");
     exit(551);
-  }      
+  }
 
   if(ivar1 == jvar1) return var5(ivar1);
 
@@ -455,11 +416,11 @@ REAL covar5(INT ivar1, INT jvar1){
   if(ivar1 < 1 || ivar1 > nvar){
     printf("error in covar5: ivar out of range\n");
     exit(555);
-  }      
+  }
   if(jvar1 < 1 || jvar1 > nvar){
     printf("error in covar5: jvar out of range\n");
     exit(556);
-  }      
+  }
 
   if(ivar1 == jvar1) return var5(ivar1);
 
@@ -610,7 +571,7 @@ void jackout5(INT ivar1, INT *nb1, REAL bj[]){
   bsum = zero;
   for(ib=0; ib<nb; ib++) bsum += blksum[ivar][ib];
 
-  for(ib=0; ib<nb; ib++) 
+  for(ib=0; ib<nb; ib++)
     bj[ib] = (bsum - blksum[ivar][ib])/(lbl[ivar]*(nb-1));
 }
 
@@ -871,7 +832,7 @@ void geom_pbc(){
   nn[i][0] ist reserviert.
   */
   int   i, k;
-  int *ibase, *ix; 
+  int *ibase, *ix;
 
   ibase = (int *) malloc((ndim+2) * sizeof(int));
   ix = (int *) malloc((ndim+1) * sizeof(int));
