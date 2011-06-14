@@ -44,9 +44,9 @@ void  savef5(FILE *file);
 void  get5(FILE *file);
 void  getf5(FILE *file);
 
-#define n_mc_runs 5000
-#define N 3
-#define ndim 3
+#define n_mc_runs 1000000
+#define N 6
+#define ndim 2
 
 int **nn;
 int lsize[4] = {0,N,N,N};
@@ -57,9 +57,9 @@ int main(){
   TRandom3 *ran = new TRandom3(0);
 
   double phi_re[nvol], phi_im[nvol], B_re[nvol], B_im[nvol], p_phi, phi2[nvol], phi2_neu, r1, r2, B2[nvol];
-  double lambda = 3;
-  double kappa = 0.4;
-  double h = 0.2;
+  double lambda = 4;
+  double kappa = 0.5;
+  double h = 0.3;
 
   for (int i=0; i<nvol; ++i){
     phi_re[i] = ran->Uniform();
@@ -75,7 +75,7 @@ int main(){
   double phi_mean_re=0., phi_mean_im=0., phi2_mean=0.;
   double dummy_re=0., dummy_im=0., dummy_sum_re, dummy_sum_im;
   int n_hits = 10;
-  int n_therm = 1000;
+  int n_therm = 10000;
 
 
   clear5(2, 500);
