@@ -43,7 +43,7 @@ void  get5(FILE *file);
 void  getf5(FILE *file);
 
 #define n_mc_runs 10000
-#define N 3
+#define N 10
 #define ndim 3
 
 int **nn;
@@ -54,10 +54,16 @@ int main(){
   geom_pbc();
   TRandom3 *ran = new TRandom3(0);
 
-  double phi_re[nvol], phi_im[nvol], B_re[nvol], B_im[nvol], p_phi, phi2[nvol], phi2_neu, r1, r2, B2[nvol];
-  double lambda = 3;
-  double kappa = 0.4;
-  double h = 0.2;
+  double phi_re[nvol], phi_im[nvol], B_re[nvol], B_im[nvol], p_phi, phi2[nvol], phi2_neu, r1, r2;
+  double lambda = 2;
+  double kappa = 0.2;
+  double h = 0.1;
+  int len = 100;
+  double h_steps[len];
+  h_steps[0] = h;
+  for (int i=1; i<len; ++i){
+    h_steps[i] = h_steps[i-1] + ((i<len/2) ? (-1) : (+1)) * h/len;
+  }
 
   for (int i=0; i<nvol; ++i){
     phi_re[i] = ran->Uniform();
@@ -66,11 +72,10 @@ int main(){
 
   double phi_neu_re, phi_neu_im, p_phi_neu;
   double p_accept;
-  double p_grenz = 0.5;
   int akzeptanz;
   double dummy;
   double delta = 1.;
-  double dummy_re=0., dummy_im=0., dummy_sum_re, dummy_sum_im;
+  double dummy_sum_re, dummy_sum_im;
   double phi_nachbar_phi_re=0., phi_nachbar_phi_im=0.;
   int n_hits = 10;
   int n_therm = 1000;
@@ -86,61 +91,67 @@ int main(){
 //     7 : |Phi|^4
   clear5(7, 500);
 
-  for (int k=0; k<n_mc_runs; ++k){
-    akzeptanz = 0;
-    for (int l=0; l<nvol; ++l){
+  for (int j=0; j<len; ++j){
+    if (j>0) n_therm = 0;
+    for (int k=0; k<n_therm+10; ++k){               // nach thermalisierung: pro h-wert 10 läufe
+      akzeptanz = 0;
+      for (int l=0; l<nvol; ++l){
 
-      dummy_sum_re = 0.;
-      dummy_sum_im = 0.;
-      for (int m=1; m<=ndim*2; ++m){
-        dummy_sum_re += phi_re[nn[m][l]];
-        dummy_sum_im += phi_im[nn[m][l]];
-      }
-      B_re[l] = h + kappa*dummy_sum_re;
-      B_im[l] = kappa*dummy_sum_im;
+        dummy_sum_re = 0.;
+        dummy_sum_im = 0.;
+        for (int m=1; m<=ndim*2; ++m){
+          dummy_sum_re += phi_re[nn[m][l]];
+          dummy_sum_im += phi_im[nn[m][l]];
+        }
+        B_re[l] = h_steps[j] + kappa*dummy_sum_re;
+        B_im[l] = kappa*dummy_sum_im;
 
-      for (int i=0; i<n_hits; ++i){
-        r1 = ran->Uniform(-1*delta, delta);
-        r2 = ran->Uniform(-1*delta, delta);
+        for (int i=0; i<n_hits; ++i){
+          r1 = ran->Uniform(-1*delta, delta);
+          r2 = ran->Uniform(-1*delta, delta);
 
-        phi2[l] = phi_re[l]*phi_re[l] + phi_im[l]*phi_im[l];
-        p_phi = p(phi_re[l], phi_im[l], B_re[l], B_im[l], phi2[l], lambda);
+          phi2[l] = phi_re[l]*phi_re[l] + phi_im[l]*phi_im[l];
+          p_phi = p(phi_re[l], phi_im[l], B_re[l], B_im[l], phi2[l], lambda);
 
-        phi_neu_re = phi_re[l] + r1;
-        phi_neu_im = phi_im[l] + r2;
+          phi_neu_re = phi_re[l] + r1;
+          phi_neu_im = phi_im[l] + r2;
 
-        phi2_neu = phi_neu_re*phi_neu_re + phi_neu_im*phi_neu_im;
-        p_phi_neu = p(phi_neu_re, phi_neu_im, B_re[l], B_im[l], phi2_neu, lambda);
+          phi2_neu = phi_neu_re*phi_neu_re + phi_neu_im*phi_neu_im;
+          p_phi_neu = p(phi_neu_re, phi_neu_im, B_re[l], B_im[l], phi2_neu, lambda);
 
-        p_accept = (p_phi_neu >= p_phi) ? 1 : p_phi_neu/p_phi;
+          p_accept = (p_phi_neu >= p_phi) ? 1 : p_phi_neu/p_phi;
 
-        if(p_accept==1 || p_phi_neu/p_phi>ran->Uniform() ) {phi_re[l] = phi_neu_re; phi_im[l] = phi_neu_im; phi2[l] = phi2_neu; akzeptanz++;}
-      }
-
-      if (k>=n_therm){
-        phi_nachbar_phi_re=0.;
-        phi_nachbar_phi_im=0.;
-        for (int i=1; i<=ndim; ++i){
-          phi_nachbar_phi_re += phi_re[nn[i][l]]*phi_re[l] + phi_im[nn[i][l]]*phi_im[l];
-          phi_nachbar_phi_im += phi_im[nn[i][l]]*phi_re[l] - phi_re[nn[i][l]]*phi_im[l];
+          if(p_accept==1 || p_phi_neu/p_phi>ran->Uniform() ) {phi_re[l] = phi_neu_re; phi_im[l] = phi_neu_im; phi2[l] = phi2_neu; akzeptanz++;}
         }
 
-        accum5(1, phi_re[l]);
-        accum5(2, phi_im[l]);
-        accum5(3, phi2[l]*phi_re[l]);
-        accum5(4, phi_nachbar_phi_re);
-        accum5(5, phi_nachbar_phi_im);
-        accum5(6, phi2[l]);
-        accum5(7, phi2[l]*phi2[l]);
-      }
-    }
-    if (k<n_therm){
-      dummy = (double)akzeptanz/(nvol*n_hits);
-      if (dummy < 0.35) delta *= 0.95;
-      else if (dummy > 0.45) delta *= 1.05;
-    }
+        if (k>=n_therm){
+          phi_nachbar_phi_re=0.;
+          phi_nachbar_phi_im=0.;
+          for (int i=1; i<=ndim; ++i){
+            phi_nachbar_phi_re += phi_re[nn[i][l]]*phi_re[l] + phi_im[nn[i][l]]*phi_im[l];
+            phi_nachbar_phi_im += phi_im[nn[i][l]]*phi_re[l] - phi_re[nn[i][l]]*phi_im[l];
+          }
 
+          accum5(1, phi_re[l]);
+          accum5(2, phi_im[l]);
+          accum5(3, phi2[l]*phi_re[l]);
+          accum5(4, phi_nachbar_phi_re);
+          accum5(5, phi_nachbar_phi_im);
+          accum5(6, phi2[l]);
+          accum5(7, phi2[l]*phi2[l]);
+        }
+      }
+      if (k<n_therm){
+        dummy = (double)akzeptanz/(nvol*n_hits);
+        if (dummy < 0.35) delta *= 0.95;
+        else if (dummy > 0.45) delta *= 1.05;
+      }
+
+    }
   }
+
+  FILE *file = fopen("hysterese.dat", "w");
+  savef5(file);
 
   cout << "Gl. 1: " << (1-2*ndim*kappa-2*lambda)*aver5(1) + 2*lambda*aver5(3) << " = " << h << endl;
   cout << "Gl. 2: " << -2*kappa*aver5(4) + (1-2*lambda)*aver5(6) + 2*lambda*aver5(7) << " = " << 1+h*aver5(1) << endl;
