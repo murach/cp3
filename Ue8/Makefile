@@ -8,6 +8,7 @@ main: 	main.o
 
 run:	main
 	./main
+	gnuplot plot.gp
 
 clean:
 	rm -f main main.o

@@ -56,13 +56,15 @@ int main(){
 
   double phi_re[nvol], phi_im[nvol], B_re[nvol], B_im[nvol], p_phi, phi2[nvol], phi2_neu, r1, r2;
   double lambda = 2;
-  double kappa = 0.2;
-  double h = 0.1;
+  double kappa = 0.3;
+  double h = 0.05;
   int len = 100;
   double h_steps[len];
+  double mag[len];
+  double mag_error[len];
   h_steps[0] = h;
   for (int i=1; i<len; ++i){
-    h_steps[i] = h_steps[i-1] + ((i<len/2) ? (-1) : (+1)) * h/len;
+    h_steps[i] = h_steps[i-1] + ((i<len/2) ? (-1) : (+1)) * 4*h/len;
   }
 
   for (int i=0; i<nvol; ++i){
@@ -78,7 +80,7 @@ int main(){
   double dummy_sum_re, dummy_sum_im;
   double phi_nachbar_phi_re=0., phi_nachbar_phi_im=0.;
   int n_hits = 10;
-  int n_therm = 1000;
+  int n_therm = 10000;
 
 
 //   accumulated data:
@@ -89,9 +91,12 @@ int main(){
 //     5 : Im (Phi_(x+mu)*Phi_stern)
 //     6 : |Phi|^2
 //     7 : |Phi|^4
-  clear5(7, 500);
+//     8 : M(h)
+//     9 : sigma(M(h))
+//   clear5(9, 500);
 
   for (int j=0; j<len; ++j){
+    clear5(7, 500);
     if (j>0) n_therm = 0;
     for (int k=0; k<n_therm+10; ++k){               // nach thermalisierung: pro h-wert 10 läufe
       akzeptanz = 0;
@@ -148,10 +153,16 @@ int main(){
       }
 
     }
+
+    mag[j] = aver5(1);
+    mag_error[j] = sigma5(1);
   }
 
   FILE *file = fopen("hysterese.dat", "w");
-  savef5(file);
+  for (int i=0; i<len; ++i){
+    fprintf(file, "%20.16e %20.16e %20.16e\n", h_steps[i], mag[i], mag_error[i]);
+  }
+  fclose(file);
 
   cout << "Gl. 1: " << (1-2*ndim*kappa-2*lambda)*aver5(1) + 2*lambda*aver5(3) << " = " << h << endl;
   cout << "Gl. 2: " << -2*kappa*aver5(4) + (1-2*lambda)*aver5(6) + 2*lambda*aver5(7) << " = " << 1+h*aver5(1) << endl;
@@ -736,18 +747,26 @@ void savef5(FILE *file){
 
   extern INT  nvar, nbmax, *nbl, *lbl, *lnew;
   extern REAL **blksum, *sqsum;
+  extern double *h_steps;
 
   INT   ivar, ib;
 
-  fprintf(file, "%i %i\n", nvar, nbmax);
-  for(ivar=0; ivar<nvar; ivar++)
-    fprintf(file, "%i %i %i\n", nbl[ivar], lbl[ivar], lnew[ivar]);
+//   fprintf(file, "%i %i\n", nvar, nbmax);
+//   for(ivar=0; ivar<nvar; ivar++)
+//     fprintf(file, "%i %i %i\n", nbl[ivar], lbl[ivar], lnew[ivar]);
+//   for(ivar=0; ivar<nvar; ivar++)
+//     for(ib=0; ib<nbmax; ib++)
+//       fprintf(file, "%20.16e\n", blksum[ivar][ib]);
+//   for(ivar=0; ivar<nvar; ivar++)
+//     fprintf(file, "%20.16e\n", sqsum[ivar]);
+
   for(ivar=0; ivar<nvar; ivar++)
     for(ib=0; ib<nbmax; ib++)
       fprintf(file, "%20.16e\n", blksum[ivar][ib]);
   for(ivar=0; ivar<nvar; ivar++)
     fprintf(file, "%20.16e\n", sqsum[ivar]);
 }
+
 void get5(FILE *file){
 
   extern INT  nvar, nbmax, *nbl, *lbl, *lnew;
