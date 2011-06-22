@@ -16,7 +16,7 @@ typedef double **matrix;
 typedef int INT;
 typedef double REAL;
 
-void geom_pbc();
+void geom_vec();
 inline double p(double phi_re, double phi_im, double B_re, double B_im, double phi2, double lambda){ return exp(2*(B_re*phi_re+B_im*phi_im) - phi2 - lambda*(phi2-1)*(phi2-1)); }
 
 /* stat5 static data */
@@ -42,35 +42,28 @@ void  savef5(FILE *file);
 void  get5(FILE *file);
 void  getf5(FILE *file);
 
-#define n_mc_runs 10000
+#define n_mc_runs 100000
 #define N 10
 #define ndim 3
 
 int **nn;
 int lsize[4] = {0,N,N,N};
 int nvol;
+int nvcell, lvec, **nnstep, **nnflag;
 
 int main(){
-  geom_pbc();
+  geom_vec();
   TRandom3 *ran = new TRandom3(0);
 
-  double phi_re[nvol], phi_im[nvol], B_re[nvol], B_im[nvol], p_phi, phi2[nvol], phi2_neu, r1, r2;
+  double phi_re[nvcell][lvec], phi_im[nvcell][lvec], B_re[lvec], B_im[lvec], p_phi, phi2[lvec], phi2_neu, r1, r2;
   double lambda = 2;
   double kappa = 0.3;
-  double h = 0.05;
-  int len = 100;
-  double h_steps[len];
-  double mag[len];
-  double mag_error[len];
-  h_steps[0] = h;
-  for (int i=1; i<len; ++i){
-    h_steps[i] = h_steps[i-1] + ((i<len/2) ? (-1) : (+1)) * 4*h/len;
-  }
+  double h = 0.2;
 
-  for (int i=0; i<nvol; ++i){
-    phi_re[i] = ran->Uniform();
-    phi_im[i] = ran->Uniform();
-  }
+//   for (int i=0; i<lvec; ++i){
+//     phi_re[i] = ran->Uniform();
+//     phi_im[i] = ran->Uniform();
+//   }
 
   double phi_neu_re, phi_neu_im, p_phi_neu;
   double p_accept;
@@ -81,6 +74,7 @@ int main(){
   double phi_nachbar_phi_re=0., phi_nachbar_phi_im=0.;
   int n_hits = 10;
   int n_therm = 10000;
+  double ran_vek[3];
 
 
 //   accumulated data:
@@ -91,78 +85,62 @@ int main(){
 //     5 : Im (Phi_(x+mu)*Phi_stern)
 //     6 : |Phi|^2
 //     7 : |Phi|^4
-//     8 : M(h)
-//     9 : sigma(M(h))
-//   clear5(9, 500);
+  clear5(7, 500);
 
-  for (int j=0; j<len; ++j){
-    clear5(7, 500);
-    if (j>0) n_therm = 0;
-    for (int k=0; k<n_therm+10; ++k){               // nach thermalisierung: pro h-wert 10 läufe
-      akzeptanz = 0;
-      for (int l=0; l<nvol; ++l){
+  for (int k=0; k<n_therm+n_mc_runs; ++k){
+    for (int ib=0; ib<nvcell; ++ib){
 
-        dummy_sum_re = 0.;
-        dummy_sum_im = 0.;
-        for (int m=1; m<=ndim*2; ++m){
-          dummy_sum_re += phi_re[nn[m][l]];
-          dummy_sum_im += phi_im[nn[m][l]];
-        }
-        B_re[l] = h_steps[j] + kappa*dummy_sum_re;
-        B_im[l] = kappa*dummy_sum_im;
-
-        for (int i=0; i<n_hits; ++i){
-          r1 = ran->Uniform(-1*delta, delta);
-          r2 = ran->Uniform(-1*delta, delta);
-
-          phi2[l] = phi_re[l]*phi_re[l] + phi_im[l]*phi_im[l];
-          p_phi = p(phi_re[l], phi_im[l], B_re[l], B_im[l], phi2[l], lambda);
-
-          phi_neu_re = phi_re[l] + r1;
-          phi_neu_im = phi_im[l] + r2;
-
-          phi2_neu = phi_neu_re*phi_neu_re + phi_neu_im*phi_neu_im;
-          p_phi_neu = p(phi_neu_re, phi_neu_im, B_re[l], B_im[l], phi2_neu, lambda);
-
-          p_accept = (p_phi_neu >= p_phi) ? 1 : p_phi_neu/p_phi;
-
-          if(p_accept==1 || p_phi_neu/p_phi>ran->Uniform() ) {phi_re[l] = phi_neu_re; phi_im[l] = phi_neu_im; phi2[l] = phi2_neu; akzeptanz++;}
-        }
-
-        if (k>=n_therm){
-          phi_nachbar_phi_re=0.;
-          phi_nachbar_phi_im=0.;
-          for (int i=1; i<=ndim; ++i){
-            phi_nachbar_phi_re += phi_re[nn[i][l]]*phi_re[l] + phi_im[nn[i][l]]*phi_im[l];
-            phi_nachbar_phi_im += phi_im[nn[i][l]]*phi_re[l] - phi_re[nn[i][l]]*phi_im[l];
-          }
-
-          accum5(1, phi_re[l]);
-          accum5(2, phi_im[l]);
-          accum5(3, phi2[l]*phi_re[l]);
-          accum5(4, phi_nachbar_phi_re);
-          accum5(5, phi_nachbar_phi_im);
-          accum5(6, phi2[l]);
-          accum5(7, phi2[l]*phi2[l]);
-        }
+      dummy_sum_re = 0.;                        //B-berechnung anfang
+      dummy_sum_im = 0.;
+      for (int m=1; m<=ndim*2; ++m){
+        dummy_sum_re += phi_re[nn[m][ib]];
+        dummy_sum_im += phi_im[nn[m][ib]];
       }
-      if (k<n_therm){
-        dummy = (double)akzeptanz/(nvol*n_hits);
-        if (dummy < 0.35) delta *= 0.95;
-        else if (dummy > 0.45) delta *= 1.05;
+      B_re[ib] = kappa*dummy_sum_re + h;
+      B_im[ib] = kappa*dummy_sum_im;            //B-berechnung ende
+
+      for (int i=0; i<n_hits; ++i){
+//         for (int l=0; l<lvec; ++l){
+        for (int j=0; j<2; ++j) ran_vek[j] = ran->Uniform(-1*delta, delta);     // frueher: r1, r2
+
+        phi2[ib] = phi_re[ib]*phi_re[ib] + phi_im[ib]*phi_im[ib];
+        p_phi = p(phi_re[ib], phi_im[ib], B_re[ib], B_im[ib], phi2[ib], lambda);
+
+        phi_neu_re = phi_re[ib] + ran_vek[0];
+        phi_neu_im = phi_im[ib] + ran_vek[1];
+
+        phi2_neu = phi_neu_re*phi_neu_re + phi_neu_im*phi_neu_im;
+        p_phi_neu = p(phi_neu_re, phi_neu_im, B_re[ib], B_im[ib], phi2_neu, lambda);
+
+        p_accept = (p_phi_neu >= p_phi) ? 1 : p_phi_neu/p_phi;
+
+        if(p_accept==1 || p_phi_neu/p_phi>ran_vek[2] ) {phi_re[ib] = phi_neu_re; phi_im[ib] = phi_neu_im; phi2[ib] = phi2_neu; akzeptanz++;}
       }
 
+      if (k>=n_therm){
+        phi_nachbar_phi_re=0.;
+        phi_nachbar_phi_im=0.;
+        for (int i=1; i<=ndim; ++i){
+          phi_nachbar_phi_re += phi_re[nn[i][ib]]*phi_re[ib] + phi_im[nn[i][ib]]*phi_im[ib];
+          phi_nachbar_phi_im += phi_im[nn[i][ib]]*phi_re[ib] - phi_re[nn[i][ib]]*phi_im[ib];
+        }
+
+        accum5(1, phi_re[ib]);
+        accum5(2, phi_im[ib]);
+        accum5(3, phi2[ib]*phi_re[ib]);
+        accum5(4, phi_nachbar_phi_re);
+        accum5(5, phi_nachbar_phi_im);
+        accum5(6, phi2[ib]);
+        accum5(7, phi2[ib]*phi2[ib]);
+      }
+    }
+    if (k<n_therm){
+      dummy = (double)akzeptanz/(nvol*n_hits);
+      if (dummy < 0.35) delta *= 0.95;
+      else if (dummy > 0.45) delta *= 1.05;
     }
 
-    mag[j] = aver5(1);
-    mag_error[j] = sigma5(1);
   }
-
-  FILE *file = fopen("hysterese.dat", "w");
-  for (int i=0; i<len; ++i){
-    fprintf(file, "%20.16e %20.16e %20.16e\n", h_steps[i], mag[i], mag_error[i]);
-  }
-  fclose(file);
 
   cout << "Gl. 1: " << (1-2*ndim*kappa-2*lambda)*aver5(1) + 2*lambda*aver5(3) << " = " << h << endl;
   cout << "Gl. 2: " << -2*kappa*aver5(4) + (1-2*lambda)*aver5(6) + 2*lambda*aver5(7) << " = " << 1+h*aver5(1) << endl;
@@ -875,62 +853,149 @@ void getf5(FILE *file){
     fscanf(file, "%le\n", &sqsum[ivar]);
 }
 
-void geom_pbc(){
+void geom_vec() {
   /*
-  Angelegt und besetzt ist                            B Bunk 12/2005
-  Dimension     ndim                              rev     4/2011
-  Gittergroesse lsize[k], k=1..ndim
+  Angelegt und besetzt ist                            B Bunk 6/2010
+      Dimension     ndim                              rev    6/2011
+      Gittergroesse lsize[k], k=1..ndim
 
   Angelegt und berechnet wird
-  Volumen       nvol
-  NN-Indexfeld  nn[k][i], k=0..2*ndim, i=0..(nvol-1)
+      Volumen                    nvol
 
-  nn[k][i] gibt den Index des Nachbarn von i in Richtung +k,
-  unter Beruecksichtigung periodischer Randbedingungen.
-  Fuer einen Schritt in Richtung -k setze man den Index auf (ndim+k).
-  nn[i][0] ist reserviert.
+      Volumen der Basiszelle     nvcell
+      NN-Schritt fuer Basispunkt nnstep[k][ib], ib=0..(nvcell-1), k=0..2*ndim
+      Permutationsflag  dazu     nnflag[k][ib], ib=0..(nvcell-1), k=0..2*ndim
+
+      Vektorlaenge               lvec
+      NN-Indexfeld im Vektor     nn[k][iv], iv=0..(lvec-1), k=0..2*ndim
+
+  nnstep[k][ib] gibt den Nachbarn des Basispunkts ib bei einem Schritt in
+      Richtung +k.
+      Fuer einen Schritt in Richtung -k setze man den Index auf (ndim+k).
+      nnstep[0][ib] ist reserviert.
+  nnflag[k][ib] gibt die zugehoerige Permutationsnummer:
+      nnflag[k][ib] = k, (k=1..2*ndim), wenn der Schritt in der Basiszelle
+                           ueber den Rand springt;
+      nnflag[k][ib] = 0 sonst.
+      nnflag[0][ib] = 0,1 gibt die Farbe von ib (Schachbrettmuster).
+
+  nn[k][iv] gibt, ausgehend vom Vektorindex iv, den Index im Nachbarvektor
+      bei einer Verschiebung (des gesamten Vektors) in Richtung +k.
+      Fuer eine Verschiebung in Richtung -k setze man den Index auf (ndim+k).
+      nn[0][iv] = iv (keine Permutation).
   */
-  int   i, k;
-  int *ibase, *ix;
+  int i, k, lsv;
+  int *ibase, *ix, *lsblk, *lsvec;
+
+  /* Hilfsfelder anlegen (ANSI C) */
 
   ibase = (int *) malloc((ndim+2) * sizeof(int));
   ix = (int *) malloc((ndim+1) * sizeof(int));
+  lsblk = (int *) malloc((ndim+1) * sizeof(int));
+  lsvec = (int *) malloc((ndim+1) * sizeof(int));
 
-  /* Basis fuer Punktindizes */
-  ibase[1] = 1;
-  for (k=1; k<=ndim; k++) ibase[k+1] = ibase[k]*lsize[k];
-  nvol = ibase[ndim+1];
+  /* Gittergroessen */
 
-  if (nn) free(nn[0]);
-  free(nn);
+  nvol = 1;
+  nvcell = 1;
+  lvec = 1;
+  for (k=1; k<=ndim; k++) {
+    if (lsize[k] % 2) {
+      printf("error in geom_vec: lsize[%i] is odd\n", lsize[k]);
+      exit(10);
+    }
+    for (lsv=10; lsv>0; lsv--) {       /* suche Zerlegung */
+      if (lsize[k] % (2*lsv) == 0) {   /* lsize[k] = lsblk[k] * lsvec[k] */
+        lsvec[k] = lsv;
+        lsblk[k] = lsize[k]/lsv;
+        break;
+      }
+    }
+    nvol *= lsize[k];
+    nvcell *= lsblk[k];
+    lvec *= lsvec[k];
+  }
+
+  /* Indexfelder neu anlegen (ANSI C) */
+
+  if (nn) {free(nn[0]); free(nnstep[0]); free(nnflag[0]);}
+  free(nn); free(nnstep); free(nnflag);
+
+  nnstep = (int **) malloc((2*ndim+1) * sizeof(int *));
+  nnstep[0] = (int *) malloc((2*ndim+1)*nvcell * sizeof(int));
+  for (k=1; k<=2*ndim; k++) nnstep[k] = nnstep[0] + nvcell*k;
+
+  nnflag = (int **) malloc((2*ndim+1) * sizeof(int *));
+  nnflag[0] = (int *) malloc((2*ndim+1)*nvcell * sizeof(int));
+  for (k=1; k<=2*ndim; k++) nnflag[k] = nnflag[0] + nvcell*k;
+
   nn = (int **) malloc((2*ndim+1) * sizeof(int *));
-  nn[0] = (int *) malloc(nvol*(2*ndim+1) * sizeof(int));
-  for (k=1; k<=2*ndim; k++) nn[k] = nn[0] + nvol*k;
+  nn[0] = (int *) malloc((2*ndim+1)*lvec * sizeof(int));
+  for (k=1; k<=2*ndim; k++) nn[k] = nn[0] + lvec*k;
 
-  for (k=1; k<=ndim; k++) ix[k] = 0;   /* Koord. des Anfangspunkts */
+  /* Geometriefelder fuer Basiszelle */
 
-  for (i=0; i<nvol; i++){           /* Schleife ueber Punkte */
-    nn[0][i] = 0;
-    for (k=1; k<=ndim; k++){
-      nn[k][i] = i + ibase[k];      /* Nachbar x + e_k */
-      if (ix[k] == (lsize[k]-1)){
-	nn[k][i] -= ibase[k+1];
-	nn[0][i] = 1;		    /* für Dirichlet-RB */
+  ibase[1] = 1;
+  for (k=1; k<=ndim; k++) {
+    ibase[k+1] = ibase[k]*lsblk[k];
+    ix[k] = 0;
+  }
+
+  for (i=0; i<nvcell; i++) {              /* Schleife ueber Basiszelle */
+    nnflag[0][i] = 0;
+    for (k=1; k<=ndim; k++) nnflag[0][i] += ix[k];
+    nnflag[0][i] = nnflag[0][i] % 2;      /* Kolorierung */
+
+    for (k=1; k<=ndim; k++) {
+      nnstep[k][i] = i + ibase[k];        /* Blocknachbar x + e_k */
+      nnflag[k][i] = 0;
+      if (ix[k] == (lsblk[k]-1)) {
+        nnstep[k][i] -= ibase[k+1];
+        nnflag[k][i] = k;
       }
 
-      nn[ndim+k][i] = i - ibase[k]; /* Nachbar x - e_k */
-      if (ix[k] == 0){
-	nn[ndim+k][i] += ibase[k+1];
-	nn[0][i] = 1;		    /* für Dirichlet-RB */
+      nnstep[ndim+k][i] = i - ibase[k];   /* Blocknachbar x - e_k */
+      nnflag[ndim+k][i] = 0;
+      if (ix[k] == 0) {
+        nnstep[ndim+k][i] += ibase[k+1];
+        nnflag[ndim+k][i] = ndim+k;
       }
-//       cout << "geomfkt: " << nn[k][i] << " " << nn[ndim+k][i] << endl;
     }
 
-    for (k=1; k<=ndim; k++){        /* Koord. des naechsten Punkts */
+    for (k=1; k<=ndim; k++) {             /* naechster Punkt */
       ix[k]++;
-      if (ix[k] < lsize[k]) break;
+      if (ix[k] < lsblk[k]) break;
       ix[k] = 0;
     }
+  }                              /* Ende der Schleife ueber Basiszelle */
+
+  /* Indexfeld fuer Vektor */
+
+  ibase[1] = 1;
+  for (k=1; k<=ndim; k++) {
+    ibase[k+1] = ibase[k]*lsvec[k];
+    ix[k] = 0;
   }
-  free(ibase); free(ix);
+
+  for (i=0; i<lvec; i++) {       /* Schleife ueber Vektorindizes */
+    nn[0][i] = i;                         /* keine Permutation */
+
+    for (k=1; k<=ndim; k++) {
+      nn[k][i] = i + ibase[k];            /* Nachbar (+k) */
+      if (ix[k] == (lsvec[k]-1)) nn[k][i] -= ibase[k+1];
+
+      nn[ndim+k][i] = i - ibase[k];       /* Nachbar (-k) */
+      if (ix[k] == 0) nn[ndim+k][i] += ibase[k+1];
+    }
+
+    for (k=1; k<=ndim; k++) {             /* naechster Punkt */
+      ix[k]++;
+      if (ix[k] < lsvec[k]) break;
+      ix[k] = 0;
+    }
+  }                              /* Ende der Schleife ueber Vektorindizes */
+
+  /* Hilfsfelder freigeben */
+
+  free(ibase); free(ix); free(lsblk); free(lsvec);
 }
