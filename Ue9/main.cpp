@@ -61,7 +61,7 @@ int main(){
   double h = 0.05;
 
   double phi_neu_re[lvec], phi_neu_im[lvec], p_phi_neu[lvec];
-  double p_accept;
+  double p_accept[lvec];
   int akzeptanz;
   double dummy;
   double delta = 1.;
@@ -71,9 +71,6 @@ int main(){
   double ran_vek1[lvec], ran_vek2[lvec], ran_vek3[lvec];
 
   for (int ib=0; ib<nvcell; ++ib){
-//     for (int j=0; j<3*n_hits; ++j){
-//       ran_vek[k][ib][j] = ran->Uniform();
-//     }
     for (int l=0; l<lvec; ++l){
       phi_re[ib][l] = 0.;//ran->Uniform();
       phi_im[ib][l] = 0.;//ran->Uniform();
@@ -98,7 +95,6 @@ int main(){
       for (int l=0; l<lvec; ++l){                       // B-Berechnung Anfang
         B_re[l] = h;
         B_im[l] = 0.;
-//         akzeptanz = 0;
       }
       for (int m=1; m<=ndim*2; ++m){
         int jb = nnstep[m][ib];
@@ -116,6 +112,11 @@ int main(){
         }
       }                                                 // B-Berechnung Ende
 
+      for (int l=0; l<lvec; ++l){
+        phi2[l] = phi_re[ib][l]*phi_re[ib][l] + phi_im[ib][l]*phi_im[ib][l];
+        p_phi[l] = p(phi_re[ib][l], phi_im[ib][l], B_re[l], B_im[l], phi2[l], lambda);
+      }
+
       for (int i=0; i<n_hits; ++i){
         for (int l=0; l<lvec; ++l){
           ran_vek1[l] = ran->Uniform(-1*delta, delta);
@@ -124,27 +125,23 @@ int main(){
         }
 
         for (int l=0; l<lvec; ++l){
-          phi2[l] = phi_re[ib][l]*phi_re[ib][l] + phi_im[ib][l]*phi_im[ib][l];
-          p_phi[l] = p(phi_re[ib][l], phi_im[ib][l], B_re[l], B_im[l], phi2[l], lambda);
-
           phi_neu_re[l] = phi_re[ib][l] + ran_vek1[l];
           phi_neu_im[l] = phi_im[ib][l] + ran_vek2[l];
 
           phi2_neu[l] = phi_neu_re[l]*phi_neu_re[l] + phi_neu_im[l]*phi_neu_im[l];
           p_phi_neu[l] = p(phi_neu_re[l], phi_neu_im[l], B_re[l], B_im[l], phi2_neu[l], lambda);
 
-          p_accept = (p_phi_neu[l] >= p_phi[l]) ? 1 : p_phi_neu[l]/p_phi[l];
+          p_accept[l] = (p_phi_neu[l] >= p_phi[l]) ? 1 : p_phi_neu[l]/p_phi[l];
 
-          if(p_accept==1 || p_phi_neu[l]/p_phi[l]>ran_vek3[l] ) {phi_re[ib][l] = phi_neu_re[l]; phi_im[ib][l] = phi_neu_im[l]; phi2[l] = phi2_neu[l]; ++akzeptanz;}
+          if(p_accept[l]==1 || p_phi_neu[l]/p_phi[l]>ran_vek3[l] ) {p_phi[l] = p_phi_neu[l]; phi_re[ib][l] = phi_neu_re[l]; phi_im[ib][l] = phi_neu_im[l]; phi2[l] = phi2_neu[l]; ++akzeptanz;}
           
           if (k>=n_therm && i+1==n_hits){
-//         for (int l=0; l<lvec; ++l){
             phi_nachbar_phi_re[l]=0.;
             phi_nachbar_phi_im[l]=0.;
             for (int i=1; i<=ndim; ++i){
               int jb = nnstep[i][ib];
               if (nnflag[i][ib]){
-                phi_nachbar_phi_re[l] += phi_re[nnstep[i][ib]][l]*phi_re[nnstep[i][ib]][l] + phi_im[nnstep[i][ib]][l]*phi_im[nnstep[i][ib]][l];   //TODO
+                phi_nachbar_phi_re[l] += phi_re[nnstep[i][ib]][l]*phi_re[nnstep[i][ib]][l] + phi_im[nnstep[i][ib]][l]*phi_im[nnstep[i][ib]][l];
                 phi_nachbar_phi_im[l] += phi_im[nnstep[i][ib]][l]*phi_re[nnstep[i][ib]][l] - phi_re[nnstep[i][ib]][l]*phi_im[nnstep[i][ib]][l];
               }
               else{
@@ -160,18 +157,17 @@ int main(){
             accum5(5, phi_nachbar_phi_im[l]);
             accum5(6, phi2[l]);
             accum5(7, phi2[l]*phi2[l]);
-          }
-        }
-          
-      }
-    }
+          }             // end if
+        }               // end for l<lvec
+      }                 // end hits loop
+    }                   // end cell loop                   
     
     if (k<n_therm){
       dummy = (double)akzeptanz/(nvol*n_hits);
       if (dummy < 0.35) delta *= 0.95;
       else if (dummy > 0.45) delta *= 1.05;
     }
-  }
+  }                     // end mc-run loop
 
   cout << "Gl. 1: " << (1-2*ndim*kappa-2*lambda)*aver5(1) + 2*lambda*aver5(3) << " = " << h << endl;
   cout << "Gl. 2: " << -2*kappa*aver5(4) + (1-2*lambda)*aver5(6) + 2*lambda*aver5(7) << " = " << 1+h*aver5(1) << endl;
