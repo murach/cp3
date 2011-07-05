@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
+#include <omp.h>
 
 #include "frng.h"
 
@@ -12,8 +13,6 @@ using std::cerr;
 using std::endl;
 using std::setw;
 
-typedef double *vektor;
-typedef double **matrix;
 typedef int INT;
 typedef double REAL;
 
@@ -44,6 +43,8 @@ int nvcell, lvec, **nnstep, **nnflag;
 
 int main(){
   geom_vec();
+  #pragma omp parallel
+  frnini(omp_get_thread_num());
 
   double phi_re[nvcell][lvec], phi_im[nvcell][lvec], B_re[lvec], B_im[lvec], p_phi[lvec], phi2[lvec], phi2_neu[lvec];
   double lambda = 3;
@@ -60,9 +61,9 @@ int main(){
   int n_therm = 10000;
   double ran_vek1[lvec], ran_vek2[lvec], ran_vek3[lvec];
 
-  int l;
+  int l, ib;
   #pragma omp parallel for private(l)
-  for (int ib=0; ib<nvcell; ++ib){
+  for (ib=0; ib<nvcell; ++ib){
     for (l=0; l<lvec; ++l){
       phi_re[ib][l] = 0.;
       phi_im[ib][l] = 0.;
@@ -84,20 +85,23 @@ int main(){
 
     for (int ib=0; ib<nvcell; ++ib){
 
-      for (int l=0; l<lvec; ++l){                       // B-Berechnung Anfang
+      int l, m;
+      #pragma omp parallel for
+      for (l=0; l<lvec; ++l){                       // B-Berechnung Anfang
         B_re[l] = h;
         B_im[l] = 0.;
       }
-      for (int m=1; m<=ndim*2; ++m){
+//       #pragma omp parallel for private(l) reduction(+: B_re, B_im)
+      for (m=1; m<=ndim*2; ++m){
         int jb = nnstep[m][ib];
         if (nnflag[m][ib]){
-          for (int l=0; l<lvec; ++l){
+          for (l=0; l<lvec; ++l){
             B_re[l] += kappa*phi_re[jb][nn[m][l]];
             B_im[l] += kappa*phi_im[jb][nn[m][l]];
           }
         }
         else{
-          for (int l=0; l<lvec; ++l){
+          for (l=0; l<lvec; ++l){
             B_re[l] += kappa*phi_re[jb][l];
             B_im[l] += kappa*phi_im[jb][l];
           }
@@ -165,7 +169,7 @@ int main(){
 
   cout << "Tests:" << endl;
   cout << "##################  7.1  #################" << endl;
-  cout << "Im(M) = " << aver5(2) << " = 0?" << endl;
+  cout << "Im(M) = " << aver5(2) << " = 0" << endl;
   cout << "Re(M) = " << aver5(1) << endl;
   cout << "##################  8.1  #################" << endl;
   cout << "Gl. 1: " << (1-2*ndim*kappa-2*lambda)*aver5(1) + 2*lambda*aver5(3) << " = " << h << endl;
