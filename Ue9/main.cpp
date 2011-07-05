@@ -62,7 +62,7 @@ int main(){
 
   double phi_neu_re[lvec], phi_neu_im[lvec], p_phi_neu[lvec];
   double p_accept;
-  int akzeptanz[lvec];
+  int akzeptanz;
   double dummy;
   double delta = 1.;
   double phi_nachbar_phi_re[lvec], phi_nachbar_phi_im[lvec];
@@ -77,8 +77,8 @@ int main(){
 //       }
 //     }
     for (int l=0; l<lvec; ++l){
-      phi_re[ib][l] = ran->Uniform();
-      phi_im[ib][l] = ran->Uniform();
+      phi_re[ib][l] = 0.;//ran->Uniform();
+      phi_im[ib][l] = 0.;//ran->Uniform();
     }
   }
 
@@ -93,25 +93,26 @@ int main(){
   clear5(7, 500);
 
   for (int k=0; k<n_therm+n_mc_runs; ++k){
+    akzeptanz = 0;
     for (int ib=0; ib<nvcell; ++ib){
 
       for (int l=0; l<lvec; ++l){                       // B-Berechnung Anfang
         B_re[l] = h;
         B_im[l] = 0.;
-        akzeptanz[l] = 0;
+//         akzeptanz = 0;
       }
       for (int m=1; m<=ndim*2; ++m){
         int jb = nnstep[m][ib];
         if (nnflag[m][ib]){
           for (int l=0; l<lvec; ++l){
-            B_re[l] += phi_re[jb][nn[m][l]];
-            B_im[l] += phi_im[jb][nn[m][l]];
+            B_re[l] += kappa*phi_re[jb][nn[m][l]];
+            B_im[l] += kappa*phi_im[jb][nn[m][l]];
           }
         }
         else{
           for (int l=0; l<lvec; ++l){
-            B_re[l] += phi_re[jb][l];
-            B_im[l] += phi_im[jb][l];
+            B_re[l] += kappa*phi_re[jb][l];
+            B_im[l] += kappa*phi_im[jb][l];
           }
         }
       }                                                 // B-Berechnung Ende
@@ -132,21 +133,21 @@ int main(){
           p_accept = (p_phi_neu[l] >= p_phi[l]) ? 1 : p_phi_neu[l]/p_phi[l];
 
 //           ran_vek[k][ib][3*i+2]
-          if(p_accept==1 || p_phi_neu[l]/p_phi[l]>ran->Uniform() ) {phi_re[ib][l] = phi_neu_re[l]; phi_im[ib][l] = phi_neu_im[l]; phi2[l] = phi2_neu[l]; ++(akzeptanz[l]);}
+          if(p_accept==1 || p_phi_neu[l]/p_phi[l]>ran->Uniform() ) {phi_re[ib][l] = phi_neu_re[l]; phi_im[ib][l] = phi_neu_im[l]; phi2[l] = phi2_neu[l]; ++akzeptanz;}
         }
 
         if (k>=n_therm){
           phi_nachbar_phi_re[l]=0.;
           phi_nachbar_phi_im[l]=0.;
           for (int i=1; i<=ndim; ++i){
-            int jb = nnstep[m][ib];
+            int jb = nnstep[i][ib];
             if (nnflag[i][ib]){
               phi_nachbar_phi_re[l] += phi_re[nnstep[i][ib]][l]*phi_re[nnstep[i][ib]][l] + phi_im[nnstep[i][ib]][l]*phi_im[nnstep[i][ib]][l];   //TODO
               phi_nachbar_phi_im[l] += phi_im[nnstep[i][ib]][l]*phi_re[nnstep[i][ib]][l] - phi_re[nnstep[i][ib]][l]*phi_im[nnstep[i][ib]][l];
             }
             else{
-              phi_nachbar_phi_re[l] += 
-              phi_nachbar_phi_re[l] += 
+              phi_nachbar_phi_re[l] += phi_re[jb][l];;
+              phi_nachbar_phi_re[l] += phi_im[jb][l];;
             }
           }
 
@@ -158,14 +159,13 @@ int main(){
           accum5(6, phi2[l]);
           accum5(7, phi2[l]*phi2[l]);
         }
-
-//         if (k<n_therm){                      // TODO: wie geht das richtig?
-//           dummy = (double)akzeptanz/(nvol*n_hits);
-//           if (dummy < 0.35) delta *= 0.95;
-//           else if (dummy > 0.45) delta *= 1.05;
-//         }
-
       }
+    }
+    
+    if (k<n_therm){                      // TODO: wie geht das richtig?
+      dummy = (double)akzeptanz/(nvol*n_hits);
+      if (dummy < 0.35) delta *= 0.95;
+      else if (dummy > 0.45) delta *= 1.05;
     }
   }
 
