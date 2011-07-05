@@ -1,6 +1,6 @@
 # CXXFLAGS=-Wall -O3 -openmp -openmp-report1 -g
 # LDLIBS=-lgomp
-CXXFLAGS=-O3 -openmp -openmp-report1
+CXXFLAGS=-openmp -openmp-report1
 CC=icpc
 #icpc
 

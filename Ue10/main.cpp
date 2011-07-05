@@ -60,14 +60,16 @@ int main(){
   int n_hits = 10;
   int n_therm = 10000;
   double ran_vek1[lvec], ran_vek2[lvec], ran_vek3[lvec];
+  int map[2][nvcell/2], icolor, ib, j;
 
-  int l, ib;
+  int l;
   #pragma omp parallel for private(l)
   for (ib=0; ib<nvcell; ++ib){
     for (l=0; l<lvec; ++l){
       phi_re[ib][l] = 0.;
       phi_im[ib][l] = 0.;
     }
+    map[nnflag[0][ib]][ib/2] = ib;
   }
 
 //   accumulated data:
@@ -83,82 +85,85 @@ int main(){
   for (int k=0; k<n_therm+n_mc_runs; ++k){
     akzeptanz = 0;
 
-    for (int ib=0; ib<nvcell; ++ib){
+    for (icolor=0; icolor<2; ++icolor){
+      for (j=0; j<nvcell/2; ++j){
+        ib = map[icolor][j];
 
-      int l, m;
-      #pragma omp parallel for
-      for (l=0; l<lvec; ++l){                       // B-Berechnung Anfang
-        B_re[l] = h;
-        B_im[l] = 0.;
-      }
-//       #pragma omp parallel for private(l) reduction(+: B_re, B_im)
-      for (m=1; m<=ndim*2; ++m){
-        int jb = nnstep[m][ib];
-        if (nnflag[m][ib]){
-          for (l=0; l<lvec; ++l){
-            B_re[l] += kappa*phi_re[jb][nn[m][l]];
-            B_im[l] += kappa*phi_im[jb][nn[m][l]];
-          }
+        int l, m;
+        #pragma omp parallel for
+        for (l=0; l<lvec; ++l){                       // B-Berechnung Anfang
+          B_re[l] = h;
+          B_im[l] = 0.;
         }
-        else{
-          for (l=0; l<lvec; ++l){
-            B_re[l] += kappa*phi_re[jb][l];
-            B_im[l] += kappa*phi_im[jb][l];
-          }
-        }
-      }                                                 // B-Berechnung Ende
-
-      for (int l=0; l<lvec; ++l){
-        phi2[l] = phi_re[ib][l]*phi_re[ib][l] + phi_im[ib][l]*phi_im[ib][l];
-        p_phi[l] = p(phi_re[ib][l], phi_im[ib][l], B_re[l], B_im[l], phi2[l], lambda);
-      }
-
-      for (int i=0; i<n_hits; ++i){
-        dfrngv(lvec, ran_vek1);
-        dfrngv(lvec, ran_vek2);
-        dfrngv(lvec, ran_vek3);
-        for (int l=0; l<lvec; ++l){
-          ran_vek1[l] = 2*delta*ran_vek1[l] - delta;
-          ran_vek2[l] = 2*delta*ran_vek2[l] - delta;
-        }
-
-        for (int l=0; l<lvec; ++l){
-          phi_neu_re[l] = phi_re[ib][l] + ran_vek1[l];
-          phi_neu_im[l] = phi_im[ib][l] + ran_vek2[l];
-
-          phi2_neu[l] = phi_neu_re[l]*phi_neu_re[l] + phi_neu_im[l]*phi_neu_im[l];
-          p_phi_neu[l] = p(phi_neu_re[l], phi_neu_im[l], B_re[l], B_im[l], phi2_neu[l], lambda);
-
-          p_accept[l] = (p_phi_neu[l] >= p_phi[l]) ? 1 : p_phi_neu[l]/p_phi[l];
-
-          if(p_accept[l]==1 || p_phi_neu[l]/p_phi[l]>ran_vek3[l] ) {p_phi[l] = p_phi_neu[l]; phi_re[ib][l] = phi_neu_re[l]; phi_im[ib][l] = phi_neu_im[l]; phi2[l] = phi2_neu[l]; ++akzeptanz;}
-          
-          if (k>=n_therm && i+1==n_hits){
-            phi_nachbar_phi_re[l]=0.;
-            phi_nachbar_phi_im[l]=0.;
-            for (int i=1; i<=ndim; ++i){
-              int jb = nnstep[i][ib];
-              if (nnflag[i][ib]){
-                phi_nachbar_phi_re[l] += phi_re[nnstep[i][ib]][l]*phi_re[nnstep[i][ib]][l] + phi_im[nnstep[i][ib]][l]*phi_im[nnstep[i][ib]][l];
-                phi_nachbar_phi_im[l] += phi_im[nnstep[i][ib]][l]*phi_re[nnstep[i][ib]][l] - phi_re[nnstep[i][ib]][l]*phi_im[nnstep[i][ib]][l];
-              }
-              else{
-                phi_nachbar_phi_re[l] += phi_re[jb][l];;
-                phi_nachbar_phi_re[l] += phi_im[jb][l];;
-              }
+  //       #pragma omp parallel for private(l) reduction(+: B_re, B_im)
+        for (m=1; m<=ndim*2; ++m){
+          int jb = nnstep[m][ib];
+          if (nnflag[m][ib]){
+            for (l=0; l<lvec; ++l){
+              B_re[l] += kappa*phi_re[jb][nn[m][l]];
+              B_im[l] += kappa*phi_im[jb][nn[m][l]];
             }
+          }
+          else{
+            for (l=0; l<lvec; ++l){
+              B_re[l] += kappa*phi_re[jb][l];
+              B_im[l] += kappa*phi_im[jb][l];
+            }
+          }
+        }                                                 // B-Berechnung Ende
 
-            accum5(1, phi_re[ib][l]);
-            accum5(2, phi_im[ib][l]);
-            accum5(3, phi2[l]*phi_re[ib][l]);
-            accum5(4, phi_nachbar_phi_re[l]);
-            accum5(5, phi_nachbar_phi_im[l]);
-            accum5(6, phi2[l]);
-            accum5(7, phi2[l]*phi2[l]);
-          }             // end if
-        }               // end for l<lvec
-      }                 // end hits loop
-    }                   // end cell loop                   
+        for (int l=0; l<lvec; ++l){
+          phi2[l] = phi_re[ib][l]*phi_re[ib][l] + phi_im[ib][l]*phi_im[ib][l];
+          p_phi[l] = p(phi_re[ib][l], phi_im[ib][l], B_re[l], B_im[l], phi2[l], lambda);
+        }
+
+        for (int i=0; i<n_hits; ++i){
+          dfrngv(lvec, ran_vek1);
+          dfrngv(lvec, ran_vek2);
+          dfrngv(lvec, ran_vek3);
+          for (int l=0; l<lvec; ++l){
+            ran_vek1[l] = 2*delta*ran_vek1[l] - delta;
+            ran_vek2[l] = 2*delta*ran_vek2[l] - delta;
+          }
+
+          for (int l=0; l<lvec; ++l){
+            phi_neu_re[l] = phi_re[ib][l] + ran_vek1[l];
+            phi_neu_im[l] = phi_im[ib][l] + ran_vek2[l];
+
+            phi2_neu[l] = phi_neu_re[l]*phi_neu_re[l] + phi_neu_im[l]*phi_neu_im[l];
+            p_phi_neu[l] = p(phi_neu_re[l], phi_neu_im[l], B_re[l], B_im[l], phi2_neu[l], lambda);
+
+            p_accept[l] = (p_phi_neu[l] >= p_phi[l]) ? 1 : p_phi_neu[l]/p_phi[l];
+
+            if(p_accept[l]==1 || p_phi_neu[l]/p_phi[l]>ran_vek3[l] ) {p_phi[l] = p_phi_neu[l]; phi_re[ib][l] = phi_neu_re[l]; phi_im[ib][l] = phi_neu_im[l]; phi2[l] = phi2_neu[l]; ++akzeptanz;}
+            
+            if (k>=n_therm && i+1==n_hits){
+              phi_nachbar_phi_re[l]=0.;
+              phi_nachbar_phi_im[l]=0.;
+              for (int i=1; i<=ndim; ++i){
+                int jb = nnstep[i][ib];
+                if (nnflag[i][ib]){
+                  phi_nachbar_phi_re[l] += phi_re[nnstep[i][ib]][l]*phi_re[nnstep[i][ib]][l] + phi_im[nnstep[i][ib]][l]*phi_im[nnstep[i][ib]][l];
+                  phi_nachbar_phi_im[l] += phi_im[nnstep[i][ib]][l]*phi_re[nnstep[i][ib]][l] - phi_re[nnstep[i][ib]][l]*phi_im[nnstep[i][ib]][l];
+                }
+                else{
+                  phi_nachbar_phi_re[l] += phi_re[jb][l];;
+                  phi_nachbar_phi_re[l] += phi_im[jb][l];;
+                }
+              }
+
+              accum5(1, phi_re[ib][l]);
+              accum5(2, phi_im[ib][l]);
+              accum5(3, phi2[l]*phi_re[ib][l]);
+              accum5(4, phi_nachbar_phi_re[l]);
+              accum5(5, phi_nachbar_phi_im[l]);
+              accum5(6, phi2[l]);
+              accum5(7, phi2[l]*phi2[l]);
+            }             // end if
+          }               // end for l<lvec
+        }                 // end hits loop
+      }                   // end cell loop
+    }                     // end color loop
     
     if (k<n_therm){
       dummy = (double)akzeptanz/(nvol*n_hits);
