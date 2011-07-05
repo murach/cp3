@@ -60,8 +60,6 @@ int main(){
   int n_therm = 10000;
   double ran_vek1[lvec], ran_vek2[lvec], ran_vek3[lvec];
 
-//   TODO: icpc als compiler
-  
   int l;
   #pragma omp parallel for private(l)
   for (int ib=0; ib<nvcell; ++ib){

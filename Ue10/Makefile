@@ -1,6 +1,6 @@
-CXXFLAGS=`root-config --cflags` -Wall -O3 -fopenmp -g
-LDLIBS=`root-config --libs` -lgomp
-CC = g++
+CXXFLAGS=-Wall -O3 -openmp -openmp-report -g
+LDLIBS=-lgomp
+CC = icpc
 #icpc
 
 all:	main
