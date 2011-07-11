@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <stdlib.h>
+#include <sys/times.h>
 #include <math.h>
 #include <stdio.h>
 #include <omp.h>
@@ -31,6 +32,9 @@ REAL  var5(INT ivar);
 REAL  sigma5(INT ivar);
 REAL  cov5(INT ivar, INT jvar);
 REAL  covar5(INT ivar, INT jvar);
+
+struct tms usage;
+double cputime1, cputime2;
 
 const int n_mc_runs = 100;
 const int N = 6;
@@ -63,12 +67,15 @@ int main(){
   double ran_vek1[lvec], ran_vek2[lvec], ran_vek3[lvec];
   int map[2][nvcell/2], icolor, ib, j;
 
-  int l;
-  #pragma omp parallel for private(l)
+  times(&usage);
+  cputime1 = ((double)usage.tms_utime)/sysconf(_SC_CLK_TCK);
+
+  int l1;
+  #pragma omp parallel for private(l1)
   for (ib=0; ib<nvcell; ++ib){
-    for (l=0; l<lvec; ++l){
-      phi_re[ib][l] = 0.;
-      phi_im[ib][l] = 0.;
+    for (l1=0; l1<lvec; ++l1){
+      phi_re[ib][l1] = 0.;
+      phi_im[ib][l1] = 0.;
     }
     map[nnflag[0][ib]][ib/2] = ib;
   }
@@ -184,6 +191,9 @@ int main(){
       else if (dummy > 0.45) delta *= 1.05;
     }
   }                     // end mc-run loop (k)
+  
+  times(&usage);
+  cputime2 = ((double)usage.tms_utime)/sysconf(_SC_CLK_TCK);
 
   cout << "Tests:" << endl;
   cout << "##################  7.1  #################" << endl;
@@ -195,6 +205,7 @@ int main(){
   cout << "Gl. 3: " << aver5(5) << " +- " << sigma5(5) << " = " << "0" << endl;
   cout << "################## anderes ###############" << endl;
   cout << "delta: " << delta << endl;
+  cout << "benoetigte Zeit in Sekunden (?): " << cputime2-cputime1 << endl;
 
 }
 
