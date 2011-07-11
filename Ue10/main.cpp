@@ -169,13 +169,15 @@ int main(){
       }                   // end cell loop (j)
     }                     // end color loop (icolor)
     
-    accum5(1, M_re/nvol);
-    accum5(2, M_im/nvol);
-    accum5(3, phi2_phi_re/nvol);
-    accum5(4, phi_nachbar_mal_phi_re/nvol);
-    accum5(5, phi_nachbar_mal_phi_im/nvol);
-    accum5(6, phi2_skalar/nvol);
-    accum5(7, phi4/nvol);
+    if (k>=n_therm){
+      accum5(1, M_re/nvol);
+      accum5(2, M_im/nvol);
+      accum5(3, phi2_phi_re/nvol);
+      accum5(4, phi_nachbar_mal_phi_re/nvol);
+      accum5(5, phi_nachbar_mal_phi_im/nvol);
+      accum5(6, phi2_skalar/nvol);
+      accum5(7, phi4/nvol);
+    }
     
     if (k<n_therm){
       dummy = (double)akzeptanz/(nvol*n_hits);
