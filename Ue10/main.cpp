@@ -32,9 +32,9 @@ REAL  sigma5(INT ivar);
 REAL  cov5(INT ivar, INT jvar);
 REAL  covar5(INT ivar, INT jvar);
 
-#define n_mc_runs 10000
-#define N 6
-#define ndim 3
+const int n_mc_runs = 100;
+const int N = 6;
+const int ndim = 3;
 
 int **nn;
 int lsize[4] = {0,N,N,N};
@@ -48,9 +48,9 @@ int main(){
 
   double phi_re[nvcell][lvec], phi_im[nvcell][lvec], B_re[lvec], B_im[lvec], p_phi[lvec], phi2[lvec], phi2_neu[lvec];
   double M_re, M_im, phi2_phi_re, phi_nachbar_mal_phi_re, phi_nachbar_mal_phi_im, phi2_skalar, phi4;
-  double lambda = 3;
-  double kappa = 0.4;
-  double h = 0.2;
+  const double lambda = 3;
+  const double kappa = 0.4;
+  const double h = 0.2;
 
   double phi_neu_re[lvec], phi_neu_im[lvec], p_phi_neu[lvec];
   double p_accept[lvec];
@@ -58,8 +58,8 @@ int main(){
   double dummy;
   double delta = 1.;
   double phi_nachbar_phi_re[lvec], phi_nachbar_phi_im[lvec];
-  int n_hits = 10;
-  int n_therm = 10000;
+  const int n_hits = 10;
+  const int n_therm = 10000;
   double ran_vek1[lvec], ran_vek2[lvec], ran_vek3[lvec];
   int map[2][nvcell/2], icolor, ib, j;
 
@@ -88,20 +88,19 @@ int main(){
 
     for (icolor=0; icolor<2; ++icolor){
       int l, m, i, jb;
-      #pragma omp parallel for private(i,l,m,jb,ib,B_re,B_im,phi2,p_phi,ran_vek1,ran_vek2,ran_vek3,phi_neu_re,phi_neu_im,phi2_neu,\
-      p_phi_neu, p_accept, phi_re, phi_im, phi_nachbar_phi_re, phi_nachbar_phi_im)\
+      #pragma omp parallel for private(j,i,l,m,jb,ib,B_re,B_im,phi2,p_phi,ran_vek1,ran_vek2,ran_vek3,phi_neu_re,\
+      phi_neu_im,phi2_neu, p_phi_neu, p_accept, phi_nachbar_phi_re, phi_nachbar_phi_im)\
       reduction(+:akzeptanz, M_re, M_im, phi2_phi_re, phi_nachbar_mal_phi_re, phi_nachbar_mal_phi_im, phi2_skalar, phi4)
       for (j=0; j<nvcell/2; ++j){
         ib = map[icolor][j];
 
-//         #pragma omp parallel for     // macht keinen sinn und geht ja auch gar nicht
         for (l=0; l<lvec; ++l){                       // B-Berechnung Anfang
           B_re[l] = h;
           B_im[l] = 0.;
         }
-//         #pragma omp parallel for private(l) reduction(+: B_re, B_im)
+
         for (m=1; m<=ndim*2; ++m){
-          int jb = nnstep[m][ib];
+          jb = nnstep[m][ib];
           if (nnflag[m][ib]){
             for (l=0; l<lvec; ++l){
               B_re[l] += kappa*phi_re[jb][nn[m][l]];
