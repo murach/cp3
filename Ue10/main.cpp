@@ -86,16 +86,18 @@ int main(){
     akzeptanz = 0;
 
     for (icolor=0; icolor<2; ++icolor){
+      int l, m, i, jb;
+      #pragma omp parallel for private(i, l, m, jb, ib, B_re, B_im, phi2, p_phi, ran_vek1, ran_vek2, ran_vek3, phi_neu_re, phi_neu_im, phi2_neu,\
+      p_phi_neu, p_accept, phi_re, phi_im, phi_nachbar_phi_re, phi_nachbar_phi_im) reduction(+:akzeptanz)
       for (j=0; j<nvcell/2; ++j){
         ib = map[icolor][j];
 
-        int l, m;
-        #pragma omp parallel for
+//         #pragma omp parallel for     // macht keinen sinn und geht ja auch gar nicht
         for (l=0; l<lvec; ++l){                       // B-Berechnung Anfang
           B_re[l] = h;
           B_im[l] = 0.;
         }
-  //       #pragma omp parallel for private(l) reduction(+: B_re, B_im)
+//         #pragma omp parallel for private(l) reduction(+: B_re, B_im)
         for (m=1; m<=ndim*2; ++m){
           int jb = nnstep[m][ib];
           if (nnflag[m][ib]){
@@ -112,21 +114,21 @@ int main(){
           }
         }                                                 // B-Berechnung Ende
 
-        for (int l=0; l<lvec; ++l){
+        for (l=0; l<lvec; ++l){
           phi2[l] = phi_re[ib][l]*phi_re[ib][l] + phi_im[ib][l]*phi_im[ib][l];
           p_phi[l] = p(phi_re[ib][l], phi_im[ib][l], B_re[l], B_im[l], phi2[l], lambda);
         }
 
-        for (int i=0; i<n_hits; ++i){
+        for (i=0; i<n_hits; ++i){
           dfrngv(lvec, ran_vek1);
           dfrngv(lvec, ran_vek2);
           dfrngv(lvec, ran_vek3);
-          for (int l=0; l<lvec; ++l){
+          for (l=0; l<lvec; ++l){
             ran_vek1[l] = 2*delta*ran_vek1[l] - delta;
             ran_vek2[l] = 2*delta*ran_vek2[l] - delta;
           }
 
-          for (int l=0; l<lvec; ++l){
+          for (l=0; l<lvec; ++l){
             phi_neu_re[l] = phi_re[ib][l] + ran_vek1[l];
             phi_neu_im[l] = phi_im[ib][l] + ran_vek2[l];
 
@@ -137,18 +139,18 @@ int main(){
 
             if(p_accept[l]==1 || p_phi_neu[l]/p_phi[l]>ran_vek3[l] ) {p_phi[l] = p_phi_neu[l]; phi_re[ib][l] = phi_neu_re[l]; phi_im[ib][l] = phi_neu_im[l]; phi2[l] = phi2_neu[l]; ++akzeptanz;}
             
-            if (k>=n_therm && i+1==n_hits){
+            if (k>=n_therm && i+1==n_hits){// && j+1 == nvcell/2){
               phi_nachbar_phi_re[l]=0.;
               phi_nachbar_phi_im[l]=0.;
-              for (int i=1; i<=ndim; ++i){
-                int jb = nnstep[i][ib];
-                if (nnflag[i][ib]){
-                  phi_nachbar_phi_re[l] += phi_re[nnstep[i][ib]][l]*phi_re[nnstep[i][ib]][l] + phi_im[nnstep[i][ib]][l]*phi_im[nnstep[i][ib]][l];
-                  phi_nachbar_phi_im[l] += phi_im[nnstep[i][ib]][l]*phi_re[nnstep[i][ib]][l] - phi_re[nnstep[i][ib]][l]*phi_im[nnstep[i][ib]][l];
+              for (m=1; m<=ndim; ++m){
+                jb = nnstep[m][ib];
+                if (nnflag[m][ib]){
+                  phi_nachbar_phi_re[l] += phi_re[nnstep[m][ib]][l]*phi_re[nnstep[m][ib]][l] + phi_im[nnstep[m][ib]][l]*phi_im[nnstep[m][ib]][l];
+                  phi_nachbar_phi_im[l] += phi_im[nnstep[m][ib]][l]*phi_re[nnstep[m][ib]][l] - phi_re[nnstep[m][ib]][l]*phi_im[nnstep[m][ib]][l];
                 }
                 else{
                   phi_nachbar_phi_re[l] += phi_re[jb][l];;
-                  phi_nachbar_phi_re[l] += phi_im[jb][l];;
+                  phi_nachbar_phi_im[l] += phi_im[jb][l];;
                 }
               }
 
@@ -161,20 +163,20 @@ int main(){
               accum5(7, phi2[l]*phi2[l]);
             }             // end if
           }               // end for l<lvec
-        }                 // end hits loop
-      }                   // end cell loop
-    }                     // end color loop
+        }                 // end hits loop (i)
+      }                   // end cell loop (j)
+    }                     // end color loop (icolor)
     
     if (k<n_therm){
       dummy = (double)akzeptanz/(nvol*n_hits);
       if (dummy < 0.35) delta *= 0.95;
       else if (dummy > 0.45) delta *= 1.05;
     }
-  }                     // end mc-run loop
+  }                     // end mc-run loop (k)
 
   cout << "Tests:" << endl;
   cout << "##################  7.1  #################" << endl;
-  cout << "Im(M) = " << aver5(2) << " = 0" << endl;
+  cout << "Im(M) = " << aver5(2) << " +- " << sigma5(2) << " = 0" << endl;
   cout << "Re(M) = " << aver5(1) << endl;
   cout << "##################  8.1  #################" << endl;
   cout << "Gl. 1: " << (1-2*ndim*kappa-2*lambda)*aver5(1) + 2*lambda*aver5(3) << " = " << h << endl;

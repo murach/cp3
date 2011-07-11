@@ -65,6 +65,7 @@ static unsigned INT64 ireg[LEN] =
 #endif
 
 static int i0 = 0, i1 = LEN - LAG;
+#pragma omp threadprivate(ireg, i0, i1)
 
 static int iup[LEN] =
   {  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16

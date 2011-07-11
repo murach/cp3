@@ -136,7 +136,7 @@ int main(){
               }
               else{
                 phi_nachbar_phi_re[l] += phi_re[jb][l];;
-                phi_nachbar_phi_re[l] += phi_im[jb][l];;
+                phi_nachbar_phi_im[l] += phi_im[jb][l];;
               }
             }
 
