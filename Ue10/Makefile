@@ -6,7 +6,7 @@ CC=icpc
 
 all:	main
 
-main: 	main.o frng.o
+main: 	main.cpp frng.cpp
 	$(CC) $(CXXFLAGS) -o main main.cpp frng.cpp
 
 run:	main

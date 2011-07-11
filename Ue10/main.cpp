@@ -47,6 +47,7 @@ int main(){
   frnini(omp_get_thread_num());
 
   double phi_re[nvcell][lvec], phi_im[nvcell][lvec], B_re[lvec], B_im[lvec], p_phi[lvec], phi2[lvec], phi2_neu[lvec];
+  double M_re, M_im, phi2_phi_re, phi_nachbar_mal_phi_re, phi_nachbar_mal_phi_im, phi2_skalar, phi4;
   double lambda = 3;
   double kappa = 0.4;
   double h = 0.2;
@@ -83,12 +84,13 @@ int main(){
   clear5(7, 500);
 
   for (int k=0; k<n_therm+n_mc_runs; ++k){
-    akzeptanz = 0;
+    akzeptanz=0; M_re=0; M_im=0; phi2_phi_re=0; phi_nachbar_mal_phi_re=0; phi_nachbar_mal_phi_im=0; phi2_skalar=0; phi4=0;
 
     for (icolor=0; icolor<2; ++icolor){
       int l, m, i, jb;
-      #pragma omp parallel for private(i, l, m, jb, ib, B_re, B_im, phi2, p_phi, ran_vek1, ran_vek2, ran_vek3, phi_neu_re, phi_neu_im, phi2_neu,\
-      p_phi_neu, p_accept, phi_re, phi_im, phi_nachbar_phi_re, phi_nachbar_phi_im) reduction(+:akzeptanz)
+      #pragma omp parallel for private(i,l,m,jb,ib,B_re,B_im,phi2,p_phi,ran_vek1,ran_vek2,ran_vek3,phi_neu_re,phi_neu_im,phi2_neu,\
+      p_phi_neu, p_accept, phi_re, phi_im, phi_nachbar_phi_re, phi_nachbar_phi_im)\
+      reduction(+:akzeptanz, M_re, M_im, phi2_phi_re, phi_nachbar_mal_phi_re, phi_nachbar_mal_phi_im, phi2_skalar, phi4)
       for (j=0; j<nvcell/2; ++j){
         ib = map[icolor][j];
 
@@ -137,9 +139,9 @@ int main(){
 
             p_accept[l] = (p_phi_neu[l] >= p_phi[l]) ? 1 : p_phi_neu[l]/p_phi[l];
 
-            if(p_accept[l]==1 || p_phi_neu[l]/p_phi[l]>ran_vek3[l] ) {p_phi[l] = p_phi_neu[l]; phi_re[ib][l] = phi_neu_re[l]; phi_im[ib][l] = phi_neu_im[l]; phi2[l] = phi2_neu[l]; ++akzeptanz;}
+            if (p_accept[l]==1 || p_phi_neu[l]/p_phi[l]>ran_vek3[l]) {p_phi[l]=p_phi_neu[l]; phi_re[ib][l]=phi_neu_re[l]; phi_im[ib][l]=phi_neu_im[l]; phi2[l]=phi2_neu[l]; ++akzeptanz;}
             
-            if (k>=n_therm && i+1==n_hits){// && j+1 == nvcell/2){
+            if (k>=n_therm && i+1==n_hits){
               phi_nachbar_phi_re[l]=0.;
               phi_nachbar_phi_im[l]=0.;
               for (m=1; m<=ndim; ++m){
@@ -153,19 +155,27 @@ int main(){
                   phi_nachbar_phi_im[l] += phi_im[jb][l];;
                 }
               }
+              M_re += phi_re[ib][l];
+              M_im += phi_im[ib][l];
+              phi2_phi_re += phi2[l]*phi_re[ib][l];
+              phi_nachbar_mal_phi_re += phi_nachbar_phi_re[l];
+              phi_nachbar_mal_phi_im += phi_nachbar_phi_im[l];
+              phi2_skalar += phi2[l];
+              phi4 += phi2[l]*phi2[l];
 
-              accum5(1, phi_re[ib][l]);
-              accum5(2, phi_im[ib][l]);
-              accum5(3, phi2[l]*phi_re[ib][l]);
-              accum5(4, phi_nachbar_phi_re[l]);
-              accum5(5, phi_nachbar_phi_im[l]);
-              accum5(6, phi2[l]);
-              accum5(7, phi2[l]*phi2[l]);
             }             // end if
           }               // end for l<lvec
         }                 // end hits loop (i)
       }                   // end cell loop (j)
     }                     // end color loop (icolor)
+    
+    accum5(1, M_re/nvol);
+    accum5(2, M_im/nvol);
+    accum5(3, phi2_phi_re/nvol);
+    accum5(4, phi_nachbar_mal_phi_re/nvol);
+    accum5(5, phi_nachbar_mal_phi_im/nvol);
+    accum5(6, phi2_skalar/nvol);
+    accum5(7, phi4/nvol);
     
     if (k<n_therm){
       dummy = (double)akzeptanz/(nvol*n_hits);
@@ -182,6 +192,8 @@ int main(){
   cout << "Gl. 1: " << (1-2*ndim*kappa-2*lambda)*aver5(1) + 2*lambda*aver5(3) << " = " << h << endl;
   cout << "Gl. 2: " << -2*kappa*aver5(4) + (1-2*lambda)*aver5(6) + 2*lambda*aver5(7) << " = " << 1+h*aver5(1) << endl;
   cout << "Gl. 3: " << aver5(5) << " +- " << sigma5(5) << " = " << "0" << endl;
+  cout << "################## anderes ###############" << endl;
+  cout << "delta: " << delta << endl;
 
 }
 
