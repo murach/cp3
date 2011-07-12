@@ -38,23 +38,25 @@ double cputime1, cputime2;
 
 const int n_mc_runs = 100;
 const int N = 6;
-const int ndim = 3;
+int ndim;
 
 int **nn;
 int lsize[4] = {0,N,N,N};
 int nvol;
 int nvcell, lvec, **nnstep, **nnflag;
 
-int main(){
+int main(int argc, char *argv[]){
+  ndim = atoi(argv[1]);
+  const double lambda = atof(argv[2]);
+  const double kappa = atof(argv[3]);
+  const double h = atof(argv[4]);
+
   geom_vec();
   #pragma omp parallel
   frnini(omp_get_thread_num());
 
   double phi_re[nvcell][lvec], phi_im[nvcell][lvec], B_re[lvec], B_im[lvec], p_phi[lvec], phi2[lvec], phi2_neu[lvec];
   double M_re, M_im, phi2_phi_re, phi_nachbar_mal_phi_re, phi_nachbar_mal_phi_im, phi2_skalar, phi4;
-  const double lambda = 3;
-  const double kappa = 0.4;
-  const double h = 0.2;
 
   double phi_neu_re[lvec], phi_neu_im[lvec], p_phi_neu[lvec];
   double p_accept[lvec];
@@ -206,6 +208,7 @@ int main(){
   cout << "################## anderes ###############" << endl;
   cout << "delta: " << delta << endl;
   cout << "benoetigte Zeit in Sekunden (?): " << cputime2-cputime1 << endl;
+  cout << endl << endl;
 
 }
 
