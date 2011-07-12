@@ -15,9 +15,9 @@ set xlabel "L"
 #set xrange [20:100]
 
 set ylabel "<|M|^2>"
-set output "M2_kappa1_2d.png"
+set output "M2_kappa1_3d.png"
 plot 'output.dat' using 1:2 w lp
 
 set ylabel "U4"
-set output "U4_kappa1_2d.png"
+set output "U4_kappa1_3d.png"
 plot 'output.dat' using 1:4 w lp

@@ -9,11 +9,19 @@ all:	main
 main: 	main.cpp frng.cpp
 	$(CC) $(CXXFLAGS) -o main main.cpp frng.cpp
 
-# Ndim lambda kappa h
-run:	main
-	./main 2 2 0.4 0
-	./main 2 2 0.55 0
+# Ndim lambda kappa h Lmax
+run1:	main
+	./main 2 2 0.4 0 128
 	gnuplot plot.gp
+	./main 2 2 0.55 0 128
+	gnuplot plot2.gp
+
+# Ndim lambda kappa h Lmax
+run2:	main
+	./main 3 2 0.23 0 16
+	gnuplot plot3.gp
+	./main 3 2 0.3 0 16
+	gnuplot plot4.gp
 
 clean:
 	rm -f main main.o

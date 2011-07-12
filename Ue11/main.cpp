@@ -37,7 +37,7 @@ int N;
 int ndim;
 
 int **nn;
-int lsize[4];// = {0,N,N,N};
+int lsize[4];
 int nvol;
 int nvcell, lvec, **nnstep, **nnflag;
 
@@ -46,11 +46,12 @@ int main(int argc, char *argv[]){
   const double lambda = atof(argv[2]);
   const double kappa = atof(argv[3]);
   const double h = atof(argv[4]);
+  const int Lmax = atoi(argv[5]);
 
   FILE *file = fopen("output.dat", "w");
   fprintf(file, "# ndim M2 M4 U4\n");
 
-  for (N=4; N<=32; N+=2){
+  for (N=4; N<=Lmax; N+=2){
     lsize[0] = 0; lsize[1] = N; lsize[2] = N; lsize[3] = N;
     geom_vec();
     #pragma omp parallel
