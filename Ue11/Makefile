@@ -13,6 +13,7 @@ main: 	main.cpp frng.cpp
 run:	main
 	./main 2 2 0.4 0
 	./main 2 2 0.55 0
+	gnuplot plot.gp
 
 clean:
 	rm -f main main.o
