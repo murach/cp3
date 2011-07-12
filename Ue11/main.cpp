@@ -200,7 +200,7 @@ int main(int argc, char *argv[]){
       }
     }                     // end mc-run loop (k)
 
-    fprintf(file, "%d %f %f %f\n", N, aver5(8), aver5(9), 2-aver5(9)/(aver5(8)*aver5(8)));
+    fprintf(file, "%d %f %f %f %f %f\n", N, aver5(8), sigma5(8), aver5(9), sigma5(9), 2-aver5(9)/(aver5(8)*aver5(8)));
 
   }                     // end L loop (L)
   fclose(file);

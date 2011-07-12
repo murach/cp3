@@ -10,13 +10,14 @@ main: 	main.cpp frng.cpp
 	$(CC) $(CXXFLAGS) -o main main.cpp frng.cpp
 
 # Ndim lambda kappa h Lmax
+# 11.1
 run1:	main
-	./main 2 2 0.4 0 128
+	./main 2 2 0.4 0 28
 	gnuplot plot.gp
 	./main 2 2 0.55 0 128
 	gnuplot plot2.gp
 
-# Ndim lambda kappa h Lmax
+# 11.2
 run2:	main
 	./main 3 2 0.23 0 16
 	gnuplot plot3.gp
