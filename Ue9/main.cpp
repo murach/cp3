@@ -147,14 +147,6 @@ int main(){
             phi_nachbar_mal_phi_im += phi_nachbar_phi_im[l];
             phi2_skalar += phi2[l];
             phi4 += phi2[l]*phi2[l];
-
-            accum5(1, phi_re[ib][l]);
-            accum5(2, phi_im[ib][l]);
-            accum5(3, phi2[l]*phi_re[ib][l]);
-            accum5(4, phi_nachbar_phi_re[l]);
-            accum5(5, phi_nachbar_phi_im[l]);
-            accum5(6, phi2[l]);
-            accum5(7, phi2[l]*phi2[l]);
           }             // end if
         }               // end for l<lvec
       }                 // end hits loop
