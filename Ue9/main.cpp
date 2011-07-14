@@ -46,6 +46,7 @@ int main(){
   TRandom3 *ran = new TRandom3(0);
 
   double phi_re[nvcell][lvec], phi_im[nvcell][lvec], B_re[lvec], B_im[lvec], p_phi[lvec], phi2[lvec], phi2_neu[lvec];
+  double M_re, M_im, phi2_phi_re, phi_nachbar_mal_phi_re, phi_nachbar_mal_phi_im, phi2_skalar, phi4;
   double lambda = 3;
   double kappa = 0.4;
   double h = 0.2;
@@ -78,7 +79,7 @@ int main(){
   clear5(7, 500);
 
   for (int k=0; k<n_therm+n_mc_runs; ++k){
-    akzeptanz = 0;
+    akzeptanz=0; M_re=0; M_im=0; phi2_phi_re=0; phi_nachbar_mal_phi_re=0; phi_nachbar_mal_phi_im=0; phi2_skalar=0; phi4=0;
 
     for (int ib=0; ib<nvcell; ++ib){
 
@@ -139,6 +140,13 @@ int main(){
                 phi_nachbar_phi_im[l] += phi_im[jb][l];;
               }
             }
+            M_re += phi_re[ib][l];
+            M_im += phi_im[ib][l];
+            phi2_phi_re += phi2[l]*phi_re[ib][l];
+            phi_nachbar_mal_phi_re += phi_nachbar_phi_re[l];
+            phi_nachbar_mal_phi_im += phi_nachbar_phi_im[l];
+            phi2_skalar += phi2[l];
+            phi4 += phi2[l]*phi2[l];
 
             accum5(1, phi_re[ib][l]);
             accum5(2, phi_im[ib][l]);
@@ -151,7 +159,17 @@ int main(){
         }               // end for l<lvec
       }                 // end hits loop
     }                   // end cell loop                   
-    
+
+    if (k>=n_therm){
+        accum5(1, M_re/nvol);
+        accum5(2, M_im/nvol);
+        accum5(3, phi2_phi_re/nvol);
+        accum5(4, phi_nachbar_mal_phi_re/nvol);
+        accum5(5, phi_nachbar_mal_phi_im/nvol);
+        accum5(6, phi2_skalar/nvol);
+        accum5(7, phi4/nvol);
+      }
+
     if (k<n_therm){
       dummy = (double)akzeptanz/(nvol*n_hits);
       if (dummy < 0.35) delta *= 0.95;
