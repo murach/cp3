@@ -32,9 +32,9 @@ REAL  sigma5(INT ivar);
 REAL  cov5(INT ivar, INT jvar);
 REAL  covar5(INT ivar, INT jvar);
 
-#define n_mc_runs 10000
-#define N 40
-#define ndim 3
+const int n_mc_runs = 10000;
+const int N = 40;
+const int ndim = 3;
 
 int **nn;
 int lsize[4] = {0,N,N,N};
