@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
     cout << "Zeit:  " << tdiff << endl;
     cout << "Zeit/Gitterpunkt: " << tdiff/nvol << endl;
     cout << "Flops/Gitterpunkt: " << flops/nvol << endl;
-    cout << "Flops/sec: " << steps*((1+2*ndim)*N*N + 14*N + 11)/tdiff << endl;
+    cout << "Flops/sec: " << flops/tdiff << endl;
 
     for (int i=0; i<nvol; ++i){
       if (nn[0][i] == 1){

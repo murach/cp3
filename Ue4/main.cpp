@@ -49,9 +49,12 @@ int main(int argc, char *argv[]) {
     double dummy;
     for (int i=0; i<nvol; ++i){
       for (int j=0; j<nvol; ++j){
-        dummy = ran->Uniform();
-        A[i][j] = dummy;
-        A[j][i] = dummy;
+	    if (abs(i-j)<=1){
+			dummy = ran->Uniform();
+			A[i][j] = dummy;
+			A[j][i] = dummy;
+		}
+		else A[i][j] = 0.;
       }
       s[i] = ran->Uniform();
     }
@@ -146,6 +149,8 @@ int cg(vektor s, void (*fkt)(vektor x, double m2, vektor c), int max_it, double 
   double tol = relerr*relerr*skalarprodukt(s, s);
   double dummyvec[nvol];
   double dummyvec2[nvol];
+  
+  print_matrix(A);
 
   double s_norm = vektor_norm(s);
   if (vektor_norm(s) < sqrt(tol)) exit(0);
