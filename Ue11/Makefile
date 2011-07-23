@@ -12,9 +12,7 @@ main: 	main.cpp frng.cpp
 # Ndim lambda kappa h Lmax
 # 11.1
 run1:	main
-	./main 2 2 0.4 0 28
-	gnuplot plot.gp
-	./main 2 2 0.55 0 128
+	./main 2 2 0.55 0 54
 	gnuplot plot2.gp
 
 # 11.2
